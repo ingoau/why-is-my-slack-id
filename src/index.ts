@@ -14,9 +14,9 @@
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url = new URL(request.url);
-		const body = (await request.json()) as unknown;
 
 		if (url.pathname === '/slack/events' && request.method === 'POST') {
+			const body = (await request.json()) as unknown;
 			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
 				if ('challenge' in body) {
 					return new Response(String(body.challenge));
