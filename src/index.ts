@@ -13,6 +13,18 @@
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
-		return new Response('Hello World!');
+		const url = new URL(request.url);
+		const body = (await request.json()) as unknown;
+
+		if (url.pathname === '/slack/events') {
+			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
+				if ('challenge' in body) {
+					return new Response(String(body.challenge));
+				}
+			}
+			return new Response('Test');
+		}
+
+		return new Response('Not Found', { status: 404 });
 	},
 } satisfies ExportedHandler<Env>;
