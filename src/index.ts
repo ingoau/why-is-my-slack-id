@@ -16,7 +16,7 @@ export default {
 		const url = new URL(request.url);
 		const body = (await request.json()) as unknown;
 
-		if (url.pathname === '/slack/events') {
+		if (url.pathname === '/slack/events' && request.method === 'POST') {
 			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
 				if ('challenge' in body) {
 					return new Response(String(body.challenge));
