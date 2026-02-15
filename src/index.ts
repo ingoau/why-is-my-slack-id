@@ -22,7 +22,7 @@ export default {
 					return new Response(String(body.challenge));
 				}
 			}
-			return new Response('Test');
+			return new Response('Not Found', { status: 404 });
 		}
 
 		return new Response('Not Found', { status: 404 });
