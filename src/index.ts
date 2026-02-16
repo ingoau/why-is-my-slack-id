@@ -11,12 +11,22 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { verifySlackRequest } from '@slack/bolt';
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url = new URL(request.url);
 
 		if (url.pathname === '/slack/events' && request.method === 'POST') {
 			const body = (await request.json()) as unknown;
+			verifySlackRequest({
+				body: String(body),
+				headers: {
+					'x-slack-signature': request.headers.get('x-slack-signature') ?? '',
+					'x-slack-request-timestamp': Number(request.headers.get('x-slack-request-timestamp') ?? 0),
+				},
+				signingSecret: process.env.SLACK_SIGNING_SECRET!,
+			});
 			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
 				if ('challenge' in body) {
 					return new Response(String(body.challenge));
