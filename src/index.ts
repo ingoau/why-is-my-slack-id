@@ -19,14 +19,18 @@ export default {
 
 		if (url.pathname === '/slack/events' && request.method === 'POST') {
 			const body = (await request.json()) as unknown;
-			verifySlackRequest({
-				body: String(body),
-				headers: {
-					'x-slack-signature': request.headers.get('x-slack-signature') ?? '',
-					'x-slack-request-timestamp': Number(request.headers.get('x-slack-request-timestamp') ?? 0),
-				},
-				signingSecret: process.env.SLACK_SIGNING_SECRET!,
-			});
+			try {
+				verifySlackRequest({
+					body: String(body),
+					headers: {
+						'x-slack-signature': request.headers.get('x-slack-signature') ?? '',
+						'x-slack-request-timestamp': Number(request.headers.get('x-slack-request-timestamp') ?? 0),
+					},
+					signingSecret: process.env.SLACK_SIGNING_SECRET!,
+				});
+			} catch {
+				return new Response('Invalid Request', { status: 400 });
+			}
 			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
 				if ('challenge' in body) {
 					return new Response(String(body.challenge));
