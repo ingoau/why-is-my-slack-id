@@ -19,6 +19,7 @@ export default {
 
 		if (url.pathname === '/slack/events' && request.method === 'POST') {
 			const body = (await request.json()) as unknown;
+			// Verify request is from slack
 			try {
 				verifySlackRequest({
 					body: String(body),
@@ -31,6 +32,7 @@ export default {
 			} catch {
 				return new Response('Invalid Request', { status: 400 });
 			}
+			// If request is a verification request
 			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
 				if ('challenge' in body) {
 					return new Response(String(body.challenge));
