@@ -30,7 +30,7 @@ export default {
 					signingSecret: process.env.SLACK_SIGNING_SECRET!,
 				});
 			} catch {
-				return new Response('Invalid Request', { status: 400 });
+				return new Response('Request is not from Slack', { status: 403 });
 			}
 			// If request is a verification request
 			if (typeof body === 'object' && body !== null && 'type' in body && body.type === 'url_verification') {
@@ -38,7 +38,7 @@ export default {
 					return new Response(String(body.challenge));
 				}
 			}
-			return new Response('Not Found', { status: 404 });
+			return new Response('Invalid Request', { status: 400 });
 		}
 
 		return new Response('Not Found', { status: 404 });
