@@ -62,11 +62,9 @@ async function getUserProfile(
 			throw new Error(`Failed to get team profile: ${teamProfile.error}`);
 		}
 		const fieldsFromSlack = teamProfile.profile?.fields;
-		for await (const [fieldId, field] of Object.entries(fieldsFromSlack || {})) {
-			if (!cachedFields[fieldId]) {
-				await env.KV.put('field:' + fieldId, JSON.stringify(field));
-			}
-		}
+		fieldsFromSlack?.forEach((field) => {
+			env.KV.put('field:' + field.id, field.field_name || '');
+		});
 	}
 
 	return {
