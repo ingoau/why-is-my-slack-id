@@ -29,7 +29,7 @@
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	"vars": {
-		"SLACK_LOGGING_LEVEL": "DEBUG",
+		"SLACK_LOGGING_LEVEL": "ERROR",
 	},
 	/**
 	 * Static Assets
