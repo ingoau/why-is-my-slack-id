@@ -56,6 +56,12 @@ async function getUserProfile(
 	);
 	const cachedFields = Object.fromEntries(cachedFieldsMap);
 
+	const fields: Record<string, string> = {};
+
+	for (const [id, label] of Object.entries(cachedFields)) {
+		fields[id] = label || '';
+	}
+
 	if (Object.entries(cachedFields).filter(([key, value]) => value !== null).length !== fieldIds.length) {
 		const teamProfile = await context.client.team.profile.get();
 		if (teamProfile.error) {
