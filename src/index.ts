@@ -59,7 +59,7 @@ async function getUserProfile(
 	const fields: Record<string, string> = {};
 
 	for (const [id, label] of Object.entries(cachedFields)) {
-		fields[id] = label || '';
+		fields[id.replace('field:', '')] = label || '';
 	}
 
 	if (Object.entries(cachedFields).filter(([key, value]) => value !== null).length !== fieldIds.length) {
