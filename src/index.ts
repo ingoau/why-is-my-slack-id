@@ -24,37 +24,45 @@ export default {
 		const app = new SlackApp({ env }).event('message', async ({ payload, context }) => {
 			// If message meets requirements (if it is a message, if it in the right channel, and if it isn't in a thread)
 			if (isPostedMessageEvent(payload) && payload.channel === process.env.CHANNEL_ID && !payload.thread_ts) {
-				// Fetch user profile
-				const userProfile = await getUserProfile(payload.user || '', context);
+				try {
+					// Fetch user profile
+					const userProfile = await getUserProfile(payload.user || '', context);
 
-				// Ask AI
-				const response = await generateText({
-					model: openrouter('openai/gpt-oss-120b'),
-					providerOptions: {
-						openrouter: {
-							provider: {
-								// Fast inference
-								order: ['cerebras', 'groq'],
-							},
-							reasoning: {
-								// This works best
-								effort: 'high',
+					// Ask AI
+					const response = await generateText({
+						model: openrouter('openai/gpt-oss-120b'),
+						providerOptions: {
+							openrouter: {
+								provider: {
+									// Fast inference
+									order: ['cerebras', 'groq'],
+								},
+								reasoning: {
+									// This works best
+									effort: 'high',
+								},
 							},
 						},
-					},
-					messages: [
-						{ role: 'system', content: PROMPT },
-						{ role: 'user', content: `Slack ID: ${payload.user}` },
-						{ role: 'user', content: `User Info: ${JSON.stringify(userProfile)}` },
-					],
-				});
+						messages: [
+							{ role: 'system', content: PROMPT },
+							{ role: 'user', content: `Slack ID: ${payload.user}` },
+							{ role: 'user', content: `User Info: ${JSON.stringify(userProfile)}` },
+						],
+					});
 
-				// Send response back
-				await context.client.chat.postMessage({
-					channel: process.env.CHANNEL_ID,
-					thread_ts: payload.ts,
-					text: response.text,
-				});
+					// Send response back
+					await context.client.chat.postMessage({
+						channel: process.env.CHANNEL_ID,
+						thread_ts: payload.ts,
+						text: response.text,
+					});
+				} catch {
+					await context.client.chat.postMessage({
+						channel: process.env.CHANNEL_ID,
+						thread_ts: payload.ts,
+						text: 'Something went wrong',
+					});
+				}
 			}
 		});
 		return await app.run(request, ctx);
