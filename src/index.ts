@@ -33,7 +33,8 @@ export default {
 					},
 					messages: [
 						{ role: 'system', content: PROMPT },
-						{ role: 'user', content: JSON.stringify(userProfile) },
+						{ role: 'user', content: `Slack ID: ${payload.user}` },
+						{ role: 'user', content: `User Info: ${JSON.stringify(userProfile)}` },
 					],
 				});
 				await context.client.chat.postMessage({
