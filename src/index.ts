@@ -9,15 +9,36 @@ import {
 	SlackEdgeAppEnv,
 	isPostedMessageEvent,
 } from 'slack-cloudflare-workers';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { generateText } from 'ai';
 
 export default {
 	async fetch(request: Request, env: SlackEdgeAppEnv, ctx: ExecutionContext): Promise<Response> {
+		const openrouter = createOpenRouter({
+			apiKey: process.env.OPENROUTER_API_KEY,
+		});
+
 		const app = new SlackApp({ env }).event('message', async ({ payload, context }) => {
 			if (isPostedMessageEvent(payload) && payload.channel === process.env.CHANNEL_ID && !payload.thread_ts) {
+				const userProfile = await getUserProfile(payload.user || '', context);
+				const response = await generateText({
+					model: openrouter('openai/gpt-oss-120b'),
+					providerOptions: {
+						openrouter: {
+							provider: {
+								order: ['cerebras', 'groq'],
+							},
+						},
+					},
+					messages: [
+						{ role: 'system', content: '' },
+						{ role: 'user', content: JSON.stringify(userProfile) },
+					],
+				});
 				await context.client.chat.postMessage({
 					channel: process.env.CHANNEL_ID,
 					thread_ts: payload.ts,
-					text: JSON.stringify(await getUserProfile(payload.user || '', context)),
+					text: '',
 				});
 				console.log(`New message: ${payload.text}`);
 			}
