@@ -69,7 +69,10 @@ async function getUserProfile(
 		}
 		const fieldsFromSlack = teamProfile.profile?.fields;
 		fieldsFromSlack?.forEach((field) => {
-			env.KV.put('field:' + field.id, field.label || '');
+			if (field.id) {
+				env.KV.put('field:' + field.id, field.label || '');
+				fields[field.id] = field.label || '';
+			}
 		});
 	}
 
