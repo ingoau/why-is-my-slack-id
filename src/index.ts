@@ -76,8 +76,26 @@ async function getUserProfile(
 		});
 	}
 
+	const {
+		image_1024,
+		image_192,
+		image_24,
+		image_32,
+		image_48,
+		image_512,
+		image_72,
+		image_original,
+		real_name_normalized,
+		display_name_normalized,
+		skype,
+		status_emoji_display_info,
+		avatar_hash,
+		status_text_canonical,
+		...cleanedProfile
+	} = response.profile;
+
 	return {
-		...response.profile,
+		...cleanedProfile,
 		fields: Object.entries(response.profile.fields || {}).map(([id, data]) => {
 			const fieldLabel = fields[id] || id;
 			return {
