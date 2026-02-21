@@ -30,6 +30,7 @@
 	 */
 	"vars": {
 		"SLACK_LOGGING_LEVEL": "ERROR",
+		"CHANNEL_ID": "C0AF8SA49J8",
 	},
 	/**
 	 * Static Assets
