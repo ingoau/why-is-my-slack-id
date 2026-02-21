@@ -1,4 +1,13 @@
-import { SlackApp, SlackEdgeAppEnv, isPostedMessageEvent } from 'slack-cloudflare-workers';
+import {
+	AuthorizeResult,
+	ChatPostMessageRequest,
+	ChatPostMessageResponse,
+	PreAuthorizeSlackAppContext,
+	SlackAPIClient,
+	SlackApp,
+	SlackEdgeAppEnv,
+	isPostedMessageEvent,
+} from 'slack-cloudflare-workers';
 
 export default {
 	async fetch(request: Request, env: SlackEdgeAppEnv, ctx: ExecutionContext): Promise<Response> {
@@ -15,3 +24,27 @@ export default {
 		return await app.run(request, ctx);
 	},
 };
+
+async function getUserProfile(
+	userId: string,
+	context: PreAuthorizeSlackAppContext & {
+		client: SlackAPIClient;
+		botToken: string;
+		botId: string;
+		botUserId: string;
+		userToken?: string;
+		authorizeResult: AuthorizeResult;
+	} & {
+		channelId: string;
+		say: (params: Omit<ChatPostMessageRequest, 'channel'>) => Promise<ChatPostMessageResponse>;
+	},
+) {
+	const response = await context.client.users.info({ user: userId });
+	if (response.error) {
+		throw new Error(`Failed to get user profile: ${response.error}`);
+	}
+	if (!response.user) {
+		throw new Error(`User not found`);
+	}
+	return response.user;
+}
