@@ -20,7 +20,7 @@ export default {
 			apiKey: process.env.OPENROUTER_API_KEY,
 		});
 
-		// Create slack-cloudlfare-workers app
+		// Create slack-cloudflare-workers app
 		const app = new SlackApp({ env }).event('message', async ({ payload, context }) => {
 			// If message meets requirements (if it is a message, if it in the right channel, and if it isn't in a thread)
 			if (isPostedMessageEvent(payload) && payload.channel === process.env.CHANNEL_ID && !payload.thread_ts) {
