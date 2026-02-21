@@ -10,8 +10,10 @@ DO NOT make assumptions about the user or any tools they use, unless you know wh
 You will output in this format:
 
 Why is your Slack ID [slackid]?
+
 [a setence here]
 
+[part of slack id] - [explaination]
 [part of slack id] - [explaination]
 repeat the above
 
