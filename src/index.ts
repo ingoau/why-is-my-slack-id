@@ -24,6 +24,9 @@ export default {
 		const app = new SlackApp({ env }).event('message', async ({ payload, context }) => {
 			// If message meets requirements (if it is a message, if it in the right channel, and if it isn't in a thread)
 			if (isPostedMessageEvent(payload) && payload.channel === process.env.CHANNEL_ID && !payload.thread_ts) {
+				// Don't allow bots to trigger
+				if ('bot_id' in payload) return;
+
 				try {
 					// Fetch user profile
 					if (!payload.user) {
