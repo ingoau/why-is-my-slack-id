@@ -105,8 +105,8 @@ async function getUserProfile(
 	}
 
 	// If field ID doesn't exist in KV then request from slack
-	// TODO: FIX THIS
-	if (Object.entries(cachedFields).filter(([key, value]) => value !== null).length !== fieldIds.length) {
+	if (Object.keys(response.profile.fields || {}).filter((field) => !cachedFields[field]).length > 0) {
+		console.log('Fetching fields from Slack');
 		// Fetch team profile from slack
 		const teamProfile = await context.client.team.profile.get();
 		// Error handling
