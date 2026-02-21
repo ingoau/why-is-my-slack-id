@@ -7,6 +7,7 @@
       "dependencies": {
         "@slack/bolt": "^4.6.0",
         "@slack/web-api": "^7.14.1",
+        "slack-cloudflare-workers": "^1.3.9",
       },
       "devDependencies": {
         "@cloudflare/vitest-pool-workers": "^0.12.4",
@@ -33,6 +34,8 @@
     "@cloudflare/workerd-linux-arm64": ["@cloudflare/workerd-linux-arm64@1.20260212.0", "", { "os": "linux", "cpu": "arm64" }, "sha512-GPvp1iiKQodtbUDi6OmR5I0vD75lawB54tdYGtmypuHC7ZOI2WhBmhb3wCxgnQNOG1z7mhCQrzRCoqrKwYbVWQ=="],
 
     "@cloudflare/workerd-windows-64": ["@cloudflare/workerd-windows-64@1.20260212.0", "", { "os": "win32", "cpu": "x64" }, "sha512-wHRI218Xn4ndgWJCUHH4Zx0YlU5q/o6OmcxXkcw95tJOsQn4lDrhppioPh4eScxJZALf2X+ODeZcyQTCq5exGw=="],
+
+    "@cloudflare/workers-types": ["@cloudflare/workers-types@4.20260228.0", "", {}, "sha512-9LfRg93ncQq6Oc4MFpqGSs+PmPhqWvg8TspXwbiYNR201IhXB4WqHR/aTSudPI0ujsf/NLc8E9fF3C+aA2g8KQ=="],
 
     "@cspotcode/source-map-support": ["@cspotcode/source-map-support@0.8.1", "", { "dependencies": { "@jridgewell/trace-mapping": "0.3.9" } }, "sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw=="],
 
@@ -503,6 +506,12 @@
     "side-channel-weakmap": ["side-channel-weakmap@1.0.2", "", { "dependencies": { "call-bound": "^1.0.2", "es-errors": "^1.3.0", "get-intrinsic": "^1.2.5", "object-inspect": "^1.13.3", "side-channel-map": "^1.0.1" } }, "sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A=="],
 
     "siginfo": ["siginfo@2.0.0", "", {}, "sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g=="],
+
+    "slack-cloudflare-workers": ["slack-cloudflare-workers@1.3.9", "", { "dependencies": { "@cloudflare/workers-types": "^4.20260130.0", "slack-edge": "^1.3.14" } }, "sha512-e96p2R6MuhqTDFOQEXNa3BeQoNSoLvr0U1S9d8RsWBBsRGMKlOo1TVZcpNqRtqZI3NKXzGExCLV1wZV+gEQEUQ=="],
+
+    "slack-edge": ["slack-edge@1.3.15", "", { "dependencies": { "slack-web-api-client": "^1.1.9" } }, "sha512-VHok9LFixsIloOhbX/bHGfDq2s1W5K3ESGpSB/lb7cFcWa9lEwUHyaDMDQMHdu5KtOWtTHVWgRpshezGRBZFCA=="],
+
+    "slack-web-api-client": ["slack-web-api-client@1.1.9", "", {}, "sha512-Kyaz5GgOmS/znh/RTHjblnDBqjiNppkZ/fqg2kaI2zIB2A/d3vS1XLeeomC/IBLZrbm4taBdttDfXr2evvIz3Q=="],
 
     "source-map-js": ["source-map-js@1.2.1", "", {}, "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="],
 
