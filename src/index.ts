@@ -77,8 +77,6 @@ async function getUserProfile(
 	}
 
 	return {
-		cachedFields,
-		fieldIds,
-		kvQuery: fieldIds.map((field) => 'field:' + field),
+		fields,
 	};
 }
