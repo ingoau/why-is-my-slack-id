@@ -29,6 +29,9 @@ export default {
 							provider: {
 								order: ['cerebras', 'groq'],
 							},
+							reasoning: {
+								effort: 'high',
+							},
 						},
 					},
 					messages: [
