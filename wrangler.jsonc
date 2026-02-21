@@ -42,4 +42,11 @@
 	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
 	 */
 	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
+
+	"kv_namespaces": [
+		{
+			"id": "d6697d39007a4ecb95629cce3f628533",
+			"binding": "KV",
+		},
+	],
 }
