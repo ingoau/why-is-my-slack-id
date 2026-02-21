@@ -1,3 +1,4 @@
+import { env } from 'cloudflare:workers';
 import {
 	AuthorizeResult,
 	ChatPostMessageRequest,
@@ -16,7 +17,7 @@ export default {
 				await context.client.chat.postMessage({
 					channel: process.env.CHANNEL_ID,
 					thread_ts: payload.ts,
-					text: 'Test',
+					text: JSON.stringify(await getUserProfile(payload.user || '', context)),
 				});
 				console.log(`New message: ${payload.text}`);
 			}
@@ -46,7 +47,22 @@ async function getUserProfile(
 	if (!response.profile) {
 		throw new Error(`User not found`);
 	}
+
+	const fieldIds = Object.keys(response.profile.fields || {});
+
+	const cachedFieldsMap = await env.KV.get(
+		fieldIds.map((field) => 'field:' + field),
+		{ type: 'text' },
+	);
+	const cachedFields = Object.fromEntries(cachedFieldsMap);
+
+	for await (const fieldId of fieldIds) {
+		await env.KV.put('field:' + fieldId, 'test');
+	}
+
 	return {
-		...response.profile,
+		cachedFields,
+		fieldIds,
+		kvQuery: fieldIds.map((field) => 'field:' + field),
 	};
 }
