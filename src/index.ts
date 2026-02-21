@@ -78,5 +78,13 @@ async function getUserProfile(
 
 	return {
 		...response.profile,
+		fields: Object.entries(response.profile.fields || {}).map(([id, data]) => {
+			const fieldLabel = fields[id] || id;
+			return {
+				label: fieldLabel,
+				alt: data.alt || '',
+				value: data.value || '',
+			};
+		}),
 	};
 }
