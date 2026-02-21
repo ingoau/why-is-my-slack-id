@@ -15,21 +15,29 @@ import { PROMPT } from './constants';
 
 export default {
 	async fetch(request: Request, env: SlackEdgeAppEnv, ctx: ExecutionContext): Promise<Response> {
+		// Create Openrouter client
 		const openrouter = createOpenRouter({
 			apiKey: process.env.OPENROUTER_API_KEY,
 		});
 
+		// Create slack-cloudlfare-workers app
 		const app = new SlackApp({ env }).event('message', async ({ payload, context }) => {
+			// If message meets requirements (if it is a message, if it in the right channel, and if it isn't in a thread)
 			if (isPostedMessageEvent(payload) && payload.channel === process.env.CHANNEL_ID && !payload.thread_ts) {
+				// Fetch user profile
 				const userProfile = await getUserProfile(payload.user || '', context);
+
+				// Ask AI
 				const response = await generateText({
 					model: openrouter('openai/gpt-oss-120b'),
 					providerOptions: {
 						openrouter: {
 							provider: {
+								// Fast inference
 								order: ['cerebras', 'groq'],
 							},
 							reasoning: {
+								// This works best
 								effort: 'high',
 							},
 						},
@@ -40,12 +48,13 @@ export default {
 						{ role: 'user', content: `User Info: ${JSON.stringify(userProfile)}` },
 					],
 				});
+
+				// Send response back
 				await context.client.chat.postMessage({
 					channel: process.env.CHANNEL_ID,
 					thread_ts: payload.ts,
 					text: response.text,
 				});
-				console.log(`New message: ${payload.text}`);
 			}
 		});
 		return await app.run(request, ctx);
@@ -66,42 +75,56 @@ async function getUserProfile(
 		say: (params: Omit<ChatPostMessageRequest, 'channel'>) => Promise<ChatPostMessageResponse>;
 	},
 ) {
+	// Fetch user profile from slack
 	const response = await context.client.users.profile.get({ user: userId });
+	// If fails
 	if (response.error) {
 		throw new Error(`Failed to get user profile: ${response.error}`);
 	}
+	// If profile is null
 	if (!response.profile) {
 		throw new Error(`User not found`);
 	}
 
+	// Get field IDs used in profile
 	const fieldIds = Object.keys(response.profile.fields || {});
 
+	// Fetch from KV
 	const cachedFieldsMap = await env.KV.get(
 		fieldIds.map((field) => 'field:' + field),
 		{ type: 'text' },
 	);
 	const cachedFields = Object.fromEntries(cachedFieldsMap);
 
+	// Create object for field-label mappings
 	const fields: Record<string, string> = {};
 
+	// Initialize fields with cached values
 	for (const [id, label] of Object.entries(cachedFields)) {
 		fields[id.replace('field:', '')] = label || '';
 	}
 
+	// If field ID doesn't exist in KV then request from slack
+	// TODO: FIX THIS
 	if (Object.entries(cachedFields).filter(([key, value]) => value !== null).length !== fieldIds.length) {
+		// Fetch team profile from slack
 		const teamProfile = await context.client.team.profile.get();
+		// Error handling
 		if (teamProfile.error) {
 			throw new Error(`Failed to get team profile: ${teamProfile.error}`);
 		}
 		const fieldsFromSlack = teamProfile.profile?.fields;
 		fieldsFromSlack?.forEach((field) => {
 			if (field.id) {
+				// Cache in KV
 				env.KV.put('field:' + field.id, field.label || '');
+				// Set in object
 				fields[field.id] = field.label || '';
 			}
 		});
 	}
 
+	// Remove unnecessary fields
 	const {
 		image_1024,
 		image_192,
