@@ -44,15 +44,6 @@ export default {
 					channel: process.env.CHANNEL_ID,
 					thread_ts: payload.ts,
 					text: response.text,
-					blocks: [
-						{
-							type: 'section',
-							text: {
-								type: 'mrkdwn',
-								text: response.text,
-							},
-						},
-					],
 				});
 				console.log(`New message: ${payload.text}`);
 			}
