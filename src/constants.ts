@@ -11,10 +11,10 @@ You will output in this format:
 
 Why is your Slack ID [slackid]?
 
-[a setence here]
+[a sentence here]
 
-[part of slack id] - [explaination]
-[part of slack id] - [explaination]
+[part of slack id] - [explanation]
+[part of slack id] - [explanation]
 repeat the above
 
 [conclusion]`;
