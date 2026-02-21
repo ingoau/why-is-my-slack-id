@@ -39,12 +39,14 @@ async function getUserProfile(
 		say: (params: Omit<ChatPostMessageRequest, 'channel'>) => Promise<ChatPostMessageResponse>;
 	},
 ) {
-	const response = await context.client.users.info({ user: userId });
+	const response = await context.client.users.profile.get({ user: userId });
 	if (response.error) {
 		throw new Error(`Failed to get user profile: ${response.error}`);
 	}
-	if (!response.user) {
+	if (!response.profile) {
 		throw new Error(`User not found`);
 	}
-	return response.user;
+	return {
+		...response.profile,
+	};
 }
