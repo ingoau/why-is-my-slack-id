@@ -77,6 +77,6 @@ async function getUserProfile(
 	}
 
 	return {
-		fields,
+		...response.profile,
 	};
 }
