@@ -26,7 +26,10 @@ export default {
 			if (isPostedMessageEvent(payload) && payload.channel === process.env.CHANNEL_ID && !payload.thread_ts) {
 				try {
 					// Fetch user profile
-					const userProfile = await getUserProfile(payload.user || '', context);
+					if (!payload.user) {
+						throw new Error('User ID not provided');
+					}
+					const userProfile = await getUserProfile(payload.user, context);
 
 					// Ask AI
 					const response = await generateText({
