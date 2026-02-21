@@ -27,6 +27,9 @@ export default {
 				// Don't allow bots to trigger
 				if ('bot_id' in payload) return;
 
+				// Allow sending messages without bot responding
+				if (payload.text.startsWith('#')) return;
+
 				try {
 					// Fetch user profile
 					if (!payload.user) {
