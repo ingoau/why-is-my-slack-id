@@ -38,7 +38,7 @@ export default {
 				await context.client.chat.postMessage({
 					channel: process.env.CHANNEL_ID,
 					thread_ts: payload.ts,
-					text: '',
+					text: response.text,
 				});
 				console.log(`New message: ${payload.text}`);
 			}
