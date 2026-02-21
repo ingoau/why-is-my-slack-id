@@ -11,6 +11,7 @@ import {
 } from 'slack-cloudflare-workers';
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { generateText } from 'ai';
+import { PROMPT } from './constants';
 
 export default {
 	async fetch(request: Request, env: SlackEdgeAppEnv, ctx: ExecutionContext): Promise<Response> {
@@ -31,7 +32,7 @@ export default {
 						},
 					},
 					messages: [
-						{ role: 'system', content: '' },
+						{ role: 'system', content: PROMPT },
 						{ role: 'user', content: JSON.stringify(userProfile) },
 					],
 				});
