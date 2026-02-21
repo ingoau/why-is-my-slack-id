@@ -105,7 +105,7 @@ async function getUserProfile(
 	}
 
 	// If field ID doesn't exist in KV then request from slack
-	if (Object.keys(response.profile.fields || {}).filter((field) => !cachedFields[field]).length > 0) {
+	if (Object.keys(response.profile.fields || {}).filter((field) => !cachedFields['field:' + field]).length > 0) {
 		console.log('Fetching fields from Slack');
 		// Fetch team profile from slack
 		const teamProfile = await context.client.team.profile.get();
@@ -114,14 +114,14 @@ async function getUserProfile(
 			throw new Error(`Failed to get team profile: ${teamProfile.error}`);
 		}
 		const fieldsFromSlack = teamProfile.profile?.fields;
-		fieldsFromSlack?.forEach((field) => {
+		for (const field of fieldsFromSlack || []) {
 			if (field.id) {
 				// Cache in KV
-				env.KV.put('field:' + field.id, field.label || '');
+				await env.KV.put('field:' + field.id, field.label || '');
 				// Set in object
 				fields[field.id] = field.label || '';
 			}
-		});
+		}
 	}
 
 	// Remove unnecessary fields
