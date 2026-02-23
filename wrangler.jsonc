@@ -48,11 +48,6 @@
 			"binding": "KV",
 		},
 	],
-	"routes": [
-		{
-			"pattern": "why-is-my-slack-id.ingo.au",
-			"zone_name": "ingo.au",
-			"custom_domain": true,
-		},
-	],
+	"workers_dev": true,
+	"preview_urls": false,
 }
