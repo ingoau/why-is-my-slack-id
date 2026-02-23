@@ -65,7 +65,7 @@ export default {
 					await context.client.chat.postMessage({
 						channel: process.env.CHANNEL_ID,
 						thread_ts: payload.ts,
-						text: 'Something went wrong',
+						text: 'Something went wrong cc <@U0923H02Y3B>',
 					});
 				}
 			}
