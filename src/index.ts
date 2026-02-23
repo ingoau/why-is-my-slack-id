@@ -39,16 +39,12 @@ export default {
 
 					// Ask AI
 					const response = await generateText({
-						model: openrouter('openai/gpt-oss-120b'),
+						model: openrouter('google/gemini-3-flash-preview'),
 						providerOptions: {
 							openrouter: {
-								provider: {
-									// Fast inference
-									order: ['cerebras', 'groq'],
-								},
 								reasoning: {
 									// This works best
-									effort: 'high',
+									effort: 'medium',
 								},
 							},
 						},
