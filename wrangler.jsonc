@@ -10,9 +10,7 @@
 	"observability": {
 		"enabled": true,
 	},
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
+	"compatibility_flags": ["nodejs_compat"],
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
@@ -31,7 +29,7 @@
 	 * https://developers.cloudflare.com/workers/configuration/secrets/
 	 */
 	"vars": {
-		"SLACK_LOGGING_LEVEL": "ERROR",
+		"SLACK_LOGGING_LEVEL": "DEBUG",
 		"CHANNEL_ID": "C0AF8SA49J8",
 	},
 	/**
@@ -54,7 +52,7 @@
 		{
 			"pattern": "why-is-my-slack-id.ingo.au",
 			"zone_name": "ingo.au",
-			"custom_domain": true
-		}
+			"custom_domain": true,
+		},
 	],
 }
