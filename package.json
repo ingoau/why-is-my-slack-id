@@ -8,5 +8,10 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "@t3-oss/env-core": "^0.13.11",
+    "slack.ts": "^0.0.22",
+    "zod": "^4.4.3"
   }
 }
