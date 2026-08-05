@@ -10,6 +10,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@openai/codex-sdk": "^0.146.0",
     "@t3-oss/env-core": "^0.13.11",
     "slack.ts": "^0.0.22",
     "zod": "^4.4.3"
