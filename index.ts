@@ -7,8 +7,7 @@ const app = new App({
 });
 
 app.on("message", async (message) => {
-  console.log("a");
-  if (message.user === process.env.SLACK_USER_ID) return;
+  if (message.thread_ts || (await message.author)?.is_bot) return;
   if (message.channel.id !== env.CHANNEL_ID) return;
 
   await message.reply("test");
