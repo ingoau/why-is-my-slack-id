@@ -1,6 +1,6 @@
 import { App } from "@slack/bolt";
 import { env } from "./env.ts";
-// import { processSlackId } from "./ai.ts";
+import { processSlackId } from "./ai/index.ts";
 
 const app = new App({
   socketMode: true,
@@ -19,9 +19,11 @@ app.message(async ({ event, say, client }) => {
     loading_messages: ["finding the meaning of your slack id..."],
   });
 
+  const explanation = await processSlackId(event.user);
+
   setTimeout(async () => {
     await say({
-      text: "Kevin",
+      text: explanation.finalResponse,
       thread_ts: event.ts,
     });
   }, 2000);

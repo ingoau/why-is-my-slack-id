@@ -1,5 +1,5 @@
 import { Codex } from "@openai/codex-sdk";
-import { prompt } from "./prompt";
+import { prompt } from "./prompt.ts";
 
 const codex = new Codex();
 
