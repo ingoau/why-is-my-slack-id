@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "node --watch --env-file=.env index.ts"
+    "dev": "node --watch --env-file=.env index.ts",
+    "start": "node --env-file=.env index.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
