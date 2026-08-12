@@ -8,14 +8,23 @@ const app = new App({
   token: env.SLACK_BOT_TOKEN,
 });
 
-app.message(async ({ event, say }) => {
+app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
-  say({
-    text: "Kevin",
+  await client.assistant.threads.setStatus({
     thread_ts: event.ts,
+    channel_id: event.channel,
+    status: "finding the meaning of your slack id...",
+    loading_messages: ["finding the meaning of your slack id..."],
   });
+
+  setTimeout(async () => {
+    await say({
+      text: "Kevin",
+      thread_ts: event.ts,
+    });
+  }, 2000);
 });
 
 // const app = new App({
