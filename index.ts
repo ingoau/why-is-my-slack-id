@@ -38,7 +38,8 @@ app.message(async ({ event, say, client }) => {
           setTimeout(async () => {
             if (!completed) {
               const parsed = await parseStatusUpdate(message);
-              updateStatus(parsed);
+              // Check again
+              if (!completed) updateStatus(parsed);
             }
           }, 100);
         }
