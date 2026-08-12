@@ -21,12 +21,10 @@ app.message(async ({ event, say, client }) => {
 
   const explanation = await processSlackId(event.user);
 
-  setTimeout(async () => {
-    await say({
-      text: explanation.finalResponse,
-      thread_ts: event.ts,
-    });
-  }, 2000);
+  await say({
+    text: explanation.finalResponse,
+    thread_ts: event.ts,
+  });
 });
 
 // const app = new App({
