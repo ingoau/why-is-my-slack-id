@@ -35,8 +35,8 @@ app.message(async ({ event, say, client }) => {
         if (agentEvent.item.type === "agent_message") {
           message = agentEvent.item.text;
           setTimeout(() => {
-            if (agentEvent.item.type === "agent_message" && !completed) {
-              updateStatus(agentEvent.item.text.substring(0, 50));
+            if (!completed) {
+              updateStatus(message.substring(0, 50));
             }
           }, 100);
         }
