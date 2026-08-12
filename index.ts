@@ -51,6 +51,8 @@ app.message(async ({ event, say, client }) => {
         await say({
           markdown_text: message,
           thread_ts: event.ts,
+          unfurl_links: false,
+          unfurl_media: false,
         });
         return;
     }
