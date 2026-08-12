@@ -1,4 +1,5 @@
 import { openRouter } from "./openrouter";
+import { statusUpdateParser as statusUpdateParserPrompt } from "./prompts";
 
 export default async function parseStatusUpdate(message: string) {
   try {
@@ -10,8 +11,7 @@ export default async function parseStatusUpdate(message: string) {
         messages: [
           {
             role: "system",
-            content:
-              "You will take in a message from an AI agent and convert it to be more concise, so it can be shown to the user. YOU MUST ALWAYS output a response under 50 characters. You can remove context if it's needed to make the response shorter.",
+            content: statusUpdateParserPrompt,
           },
           {
             role: "user",

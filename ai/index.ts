@@ -1,5 +1,5 @@
 import { Codex } from "@openai/codex-sdk";
-import { prompt } from "./prompt.ts";
+import { agent as agentPrompt } from "./prompts.ts";
 
 const codex = new Codex();
 
@@ -9,5 +9,5 @@ export function processSlackId(slackId: string) {
     modelReasoningEffort: "low",
   });
 
-  return thread.runStreamed(prompt + "\n" + slackId);
+  return thread.runStreamed(agentPrompt + "\n" + slackId);
 }
