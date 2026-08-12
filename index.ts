@@ -1,6 +1,6 @@
 import { App } from "@slack/bolt";
-import { env } from "./env";
-import { processSlackId } from "./ai";
+import { env } from "./env.ts";
+// import { processSlackId } from "./ai.ts";
 
 const app = new App({
   socketMode: true,
