@@ -32,12 +32,14 @@ app.message(async ({ event, say, client }) => {
     console.log(agentEvent.type);
     switch (agentEvent.type) {
       case "item.completed":
-        setTimeout(() => {
-          if (agentEvent.item.type === "agent_message" && !completed) {
-            message = agentEvent.item.text;
-            updateStatus(agentEvent.item.text.substring(0, 50));
-          }
-        }, 100);
+        if (agentEvent.item.type === "agent_message") {
+          message = agentEvent.item.text;
+          setTimeout(() => {
+            if (agentEvent.item.type === "agent_message" && !completed) {
+              updateStatus(agentEvent.item.text.substring(0, 50));
+            }
+          }, 100);
+        }
         break;
     }
     switch (agentEvent.type) {
