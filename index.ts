@@ -11,8 +11,10 @@ const app = new App({
 app.message(async ({ event, say }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
+  if (event.channel !== env.CHANNEL_ID) return;
   say({
     text: "Kevin",
+    thread_ts: event.ts,
   });
 });
 
