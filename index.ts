@@ -12,19 +12,28 @@ app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
-  await client.assistant.threads.setStatus({
-    thread_ts: event.ts,
-    channel_id: event.channel,
-    status: "finding the meaning of your slack id...",
-    loading_messages: ["finding the meaning of your slack id..."],
-  });
 
-  const explanation = await processSlackId(event.user);
+  const updateStatus = (status: string) =>
+    client.assistant.threads.setStatus({
+      thread_ts: event.ts,
+      channel_id: event.channel,
+      status: "is finding the meaning of your slack id...",
+      loading_messages: [status],
+    });
 
-  await say({
-    text: explanation.finalResponse,
-    thread_ts: event.ts,
-  });
+  updateStatus("finding the meaning of your slack id...");
+
+  const { events } = await processSlackId(event.user);
+
+  for await (const event of events) {
+    switch (event.type) {
+      case "item.completed":
+        if (event.item.type === "agent_message") {
+          updateStatus(event.item.text.substring(0, 50));
+        }
+        break;
+    }
+  }
 });
 
 await app.start();

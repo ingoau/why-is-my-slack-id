@@ -9,5 +9,5 @@ export function processSlackId(slackId: string) {
     modelReasoningEffort: "low",
   });
 
-  return thread.run(prompt + "\n" + slackId);
+  return thread.runStreamed(prompt + "\n" + slackId);
 }
