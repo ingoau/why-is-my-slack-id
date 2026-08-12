@@ -17,7 +17,7 @@ if (
 )
   throw new Error(teamProfile.error);
 
-const fields = Object.fromEntries(
+const teamFields = Object.fromEntries(
   teamProfile.profile.fields.map((field) => [field.id, field.label]),
 );
 
@@ -25,6 +25,21 @@ app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
+
+  const profileInfo = await client.users.profile.get({ user: event.user });
+  if (
+    !profileInfo.ok ||
+    profileInfo.profile === undefined ||
+    profileInfo.profile.fields === undefined
+  )
+    return;
+
+  const profileFields = Object.entries(profileInfo.profile?.fields).map(
+    ([id, field]) => ({
+      ...field,
+      name: teamFields[id],
+    }),
+  );
 
   const updateStatus = (status: string | undefined) =>
     client.assistant.threads.setStatus({
@@ -36,7 +51,7 @@ app.message(async ({ event, say, client }) => {
 
   updateStatus("finding the meaning of your slack id...");
 
-  const { events } = await processSlackId(event.user);
+  const { events } = await processSlackId(event.user, profileFields);
 
   let message = "";
   let completed = false;
