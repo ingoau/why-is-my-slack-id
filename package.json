@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@openai/codex-sdk": "^0.146.0",
+    "@openrouter/sdk": "^1.2.27",
     "@slack/bolt": "^5.0.0",
     "@t3-oss/env-core": "^0.13.11",
     "zod": "^4.4.3"

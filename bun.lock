@@ -6,6 +6,7 @@
       "name": "why-is-my-slack-id",
       "dependencies": {
         "@openai/codex-sdk": "^0.146.0",
+        "@openrouter/sdk": "^1.2.27",
         "@slack/bolt": "^5.0.0",
         "@t3-oss/env-core": "^0.13.11",
         "zod": "^4.4.3",
@@ -34,6 +35,8 @@
     "@openai/codex-win32-arm64": ["@openai/codex@0.146.0-win32-arm64", "", { "os": "win32", "cpu": "arm64" }, "sha512-EW6zdjDe+SLX2Iw+xymJ5+Pz2+DGexdstfFHXh4Ub+TfJsQPiMjGfZfNaoWgdJ2FsqSIzVKu2+G0KCMGYz2W8g=="],
 
     "@openai/codex-win32-x64": ["@openai/codex@0.146.0-win32-x64", "", { "os": "win32", "cpu": "x64" }, "sha512-b3lxMYeR0+IhstNo4JjX1P9cPc1xwVcCVkPd1lD1wpWPJ0SBhpIkPczwbu3ZRkJcdyl342+rgyf4DUrbZLdrGA=="],
+
+    "@openrouter/sdk": ["@openrouter/sdk@1.2.27", "", { "dependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-qSX6Ps4v8AzP4gdcV5Pg7smmzFDdDqRX3VaMpecLYwCqsLBNijybKDUvIxq/uB0xeY2+LmVuthfE/1IOfyFKlg=="],
 
     "@slack/bolt": ["@slack/bolt@5.0.0", "", { "dependencies": { "@slack/logger": "^5.0.0", "@slack/oauth": "^4.0.0", "@slack/socket-mode": "^3.0.0", "@slack/types": "^3.0.0", "@slack/web-api": "^8.0.0", "express": "^5.0.0", "path-to-regexp": "^8.1.0", "raw-body": "^3", "tsscmp": "^1.0.6" }, "peerDependencies": { "@types/express": "^5.0.0" } }, "sha512-L0FTzidrDKTu4Ph8sdv0bB3acafBTAC02TBcD+hojPTTNSMX3hSK+rkpkUKkqbbc0vGpSjd6A/g71Rjy7EbBhw=="],
 

@@ -6,6 +6,7 @@ export const env = createEnv({
     SLACK_BOT_TOKEN: z.string().min(1),
     SLACK_APP_TOKEN: z.string().min(1),
     CHANNEL_ID: z.string().min(1),
+    OPENROUTER_KEY: z.string().min(1),
   },
 
   /**
