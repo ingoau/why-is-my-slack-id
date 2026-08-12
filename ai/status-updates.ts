@@ -1,28 +1,35 @@
 import { openRouter } from "./openrouter";
 
 export default async function parseStatusUpdate(message: string) {
-  const response = await openRouter.chat.send({
-    chatRequest: {
-      model: "openai/gpt-5.6-luna",
-      reasoningEffort: "none",
-      provider: { sort: "latency" },
-      stream: false,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You will take in a message from an AI agent and convert it to be more concise, so it can be shown to the user. Always output a response under 50 characters.",
-        },
-        {
-          role: "user",
-          content: message,
-        },
-      ],
-    },
-  });
+  try {
+    const response = await openRouter.chat.send({
+      chatRequest: {
+        model: "openai/gpt-5.6-luna",
+        reasoningEffort: "none",
+        provider: { sort: "latency" },
+        stream: false,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You will take in a message from an AI agent and convert it to be more concise, so it can be shown to the user. Always output a response under 50 characters.",
+          },
+          {
+            role: "user",
+            content: message,
+          },
+        ],
+      },
+    });
 
-  // fucking openrouter being broken
-  if (!("choices" in response)) throw new Error("Unexpected stream");
+    // fucking openrouter being broken
+    if (!("choices" in response)) throw new Error("Unexpected stream");
 
-  return response.choices[0]?.message.content;
+    return response.choices[0]?.message.content
+      ?.toString()
+      .trim()
+      .substring(0, 50);
+  } catch {
+    return message.substring(0, 50);
+  }
 }
