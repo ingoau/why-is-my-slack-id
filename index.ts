@@ -9,6 +9,18 @@ const app = new App({
   token: env.SLACK_BOT_TOKEN,
 });
 
+const teamProfile = await app.client.team.profile.get();
+if (
+  !teamProfile.ok ||
+  teamProfile.profile === undefined ||
+  teamProfile.profile.fields === undefined
+)
+  throw new Error(teamProfile.error);
+
+const fields = Object.fromEntries(
+  teamProfile.profile.fields.map((field) => [field.id, field.label]),
+);
+
 app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
