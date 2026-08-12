@@ -1,6 +1,7 @@
 import { App } from "@slack/bolt";
 import { env } from "./env.ts";
 import { processSlackId } from "./ai/index.ts";
+import parseStatusUpdate from "./ai/status-updates.ts";
 
 const app = new App({
   socketMode: true,
@@ -13,12 +14,12 @@ app.message(async ({ event, say, client }) => {
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
 
-  const updateStatus = (status: string) =>
+  const updateStatus = (status: string | undefined) =>
     client.assistant.threads.setStatus({
       thread_ts: event.ts,
       channel_id: event.channel,
       status: "is finding the meaning of your slack id...",
-      loading_messages: [status],
+      loading_messages: [status || "finding the meaning of your slack id..."],
     });
 
   updateStatus("finding the meaning of your slack id...");
@@ -34,9 +35,10 @@ app.message(async ({ event, say, client }) => {
       case "item.completed":
         if (agentEvent.item.type === "agent_message") {
           message = agentEvent.item.text;
-          setTimeout(() => {
+          setTimeout(async () => {
             if (!completed) {
-              updateStatus(message.substring(0, 50));
+              const parsed = await parseStatusUpdate(message);
+              updateStatus(parsed);
             }
           }, 100);
         }
