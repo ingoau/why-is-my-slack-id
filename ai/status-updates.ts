@@ -5,8 +5,7 @@ export default async function parseStatusUpdate(message: string) {
   try {
     const response = await openRouter.chat.send({
       chatRequest: {
-        model: "google/gemini-2.5-flash",
-        provider: { sort: "latency" },
+        model: "anthropic/claude-haiku-4.5",
         stream: false,
         messages: [
           {
