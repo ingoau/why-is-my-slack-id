@@ -26,23 +26,28 @@ app.message(async ({ event, say, client }) => {
   const { events } = await processSlackId(event.user);
 
   let message = "";
+  let completed = false;
 
   for await (const agentEvent of events) {
     console.log(agentEvent.type);
     switch (agentEvent.type) {
       case "item.completed":
-        if (agentEvent.item.type === "agent_message") {
-          message = agentEvent.item.text;
-          updateStatus(agentEvent.item.text.substring(0, 50));
-        }
+        setTimeout(() => {
+          if (agentEvent.item.type === "agent_message" && !completed) {
+            message = agentEvent.item.text;
+            updateStatus(agentEvent.item.text.substring(0, 50));
+          }
+        }, 100);
         break;
     }
     switch (agentEvent.type) {
       case "turn.completed":
+        completed = true;
         await say({
           markdown_text: message,
           thread_ts: event.ts,
         });
+        return;
     }
   }
 });
