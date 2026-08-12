@@ -1,5 +1,5 @@
-import { openRouter } from "./openrouter";
-import { statusUpdateParser as statusUpdateParserPrompt } from "./prompts";
+import { openRouter } from "./openrouter.ts";
+import { statusUpdateParser as statusUpdateParserPrompt } from "./prompts.ts";
 
 export default async function parseStatusUpdate(message: string) {
   try {
