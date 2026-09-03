@@ -1,9 +1,7 @@
-import { Codex } from "@openai/codex-sdk";
+import { Agent } from "@cursor/sdk/bundled";
 import { agent as agentPrompt } from "./prompts.ts";
 
-const codex = new Codex();
-
-export function processSlackId(
+export async function processSlackId(
   slackId: string,
   fields: {
     name: any;
@@ -12,17 +10,21 @@ export function processSlackId(
     value?: string | undefined;
   }[],
 ) {
-  const thread = codex.startThread({
-    model: "gpt-5.6-sol",
-    modelReasoningEffort: "low",
+  const agent = await Agent.create({
+    apiKey: process.env.CURSOR_API_KEY,
+    model: { id: "grok-4.5" },
+    local: { cwd: process.cwd() },
   });
-  return thread.runStreamed(
-    agentPrompt +
-      "\n\n" +
-      slackId +
-      "\n\nInfo about the user:\n" +
-      fields
-        .map((f) => `${f.name}:\n${f.value}\n${f.alt || ""}\n\n`)
-        .join("\n"),
-  );
+
+  return (
+    await agent.send(
+      agentPrompt +
+        "\n\n" +
+        slackId +
+        "\n\nInfo about the user:\n" +
+        fields
+          .map((f) => `${f.name}:\n${f.value}\n${f.alt || ""}\n\n`)
+          .join("\n"),
+    )
+  ).stream();
 }
