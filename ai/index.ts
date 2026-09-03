@@ -14,6 +14,7 @@ export async function processSlackId(
     apiKey: process.env.CURSOR_API_KEY,
     model: { id: "glm-5.2" },
     local: { cwd: process.cwd() },
+    tools: ["webFetch", "webSearch", "mcp"],
   });
 
   return (
