@@ -1,4 +1,4 @@
-import { Agent } from "@cursor/sdk/bundled";
+import { Agent } from "@cursor/sdk";
 import { agent as agentPrompt } from "./prompts.ts";
 
 export async function processSlackId(
