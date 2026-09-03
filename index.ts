@@ -79,6 +79,7 @@ app.message(async ({ event, say, client }) => {
     console.log(JSON.stringify(agentEvent));
 
     if (agentEvent.type === "thinking" && agentEvent.text) {
+      if (message) message = "";
       thinking += agentEvent.text;
       maybeUpdateStatus();
     }
