@@ -1,6 +1,6 @@
 import { WebClient } from "@slack/web-api";
 import type { SDKCustomTool } from "@cursor/sdk";
-import { env } from "../env";
+import { env } from "../env.ts";
 
 /**
  * Slack WebClient backed by the user (xoxp) token. search.messages needs a user
@@ -24,7 +24,11 @@ export const slackSearchTool: SDKCustomTool = {
       query: { type: "string" },
       count: { type: "number", default: 20 },
       page: { type: "number", default: 1 },
-      sort: { type: "string", enum: ["timestamp", "score"], default: "timestamp" },
+      sort: {
+        type: "string",
+        enum: ["timestamp", "score"],
+        default: "timestamp",
+      },
       sort_dir: { type: "string", enum: ["asc", "desc"], default: "desc" },
     },
     required: ["query"],
