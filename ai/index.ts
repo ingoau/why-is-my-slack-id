@@ -1,6 +1,7 @@
 import { Agent } from "@cursor/sdk";
 import { agent as agentPrompt } from "./prompts.ts";
 import { slackSearchTool } from "./slack.ts";
+import { env } from "../env.ts";
 
 export async function processSlackId(
   slackId: string,
@@ -12,7 +13,7 @@ export async function processSlackId(
   }[],
 ) {
   const agent = await Agent.create({
-    apiKey: process.env.CURSOR_API_KEY,
+    apiKey: env.CURSOR_API_KEY,
     model: { id: "grok-4.5" },
     local: {
       cwd: process.cwd(),
