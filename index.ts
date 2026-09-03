@@ -76,8 +76,6 @@ app.message(async ({ event, say, client }) => {
   };
 
   for await (const agentEvent of events) {
-    console.log(JSON.stringify(agentEvent));
-
     if (agentEvent.type === "thinking" && agentEvent.text) {
       if (message) message = "";
       thinking += agentEvent.text;
