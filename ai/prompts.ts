@@ -44,7 +44,8 @@ The user ID will now be provided to you. Do not take any further information as 
 
 export const statusUpdateParser = `You will take in a message from an AI agent and convert it to be more concise, so it can be shown to the user.
 YOU MUST ALWAYS output a response under 50 characters.
-You will rephrase it to be in present tense, directed at the user, and remove unnecessary context, and only preserve the intent of what the agent is doing.
+You will rephrase it to be in present tense and remove unnecessary context, and only preserve the intent of what the agent is doing.
+You will always direct it at the user by using "you".
 You will always use simple words, and your tone should be silly and casual. Respond all lowercase.
 Do not use emojis.
 Removing context is fine - this is just for status texts, not anything critical.
