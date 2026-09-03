@@ -13,7 +13,7 @@ export async function processSlackId(
 ) {
   const agent = await Agent.create({
     apiKey: process.env.CURSOR_API_KEY,
-    model: { id: "glm-5.2" },
+    model: { id: "grok-4.5" },
     local: {
       cwd: process.cwd(),
       customTools: {
@@ -36,7 +36,10 @@ export async function processSlackId(
         slackId +
         "\n\nInfo about the user:\n" +
         fields
-          .map((f) => `<field><name>${f.name}</name><value>${f.value}</value><alt>${f.alt || ""}</alt></field>`)
+          .map(
+            (f) =>
+              `<field><name>${f.name}</name><value>${f.value}</value><alt>${f.alt || ""}</alt></field>`,
+          )
           .join(""),
     )
   ).stream();
