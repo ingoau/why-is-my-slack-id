@@ -36,8 +36,8 @@ export async function processSlackId(
         slackId +
         "\n\nInfo about the user:\n" +
         fields
-          .map((f) => `${f.name}:\n${f.value}\n${f.alt || ""}\n\n`)
-          .join("\n"),
+          .map((f) => `<field><name>${f.name}</name><value>${f.value}</value><alt>${f.alt || ""}</alt></field>`)
+          .join(""),
     )
   ).stream();
 }
