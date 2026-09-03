@@ -13,7 +13,17 @@ export async function processSlackId(
   const agent = await Agent.create({
     apiKey: process.env.CURSOR_API_KEY,
     model: { id: "glm-5.2" },
-    local: { cwd: process.cwd() },
+    local: {
+      cwd: process.cwd(),
+      customTools: {
+        random_number: {
+          description: "Generate a random number between 0 and 1",
+          async execute() {
+            return Math.random();
+          },
+        },
+      },
+    },
     tools: ["webFetch", "webSearch", "mcp"],
   });
 
