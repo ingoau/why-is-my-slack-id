@@ -12,7 +12,7 @@ export async function processSlackId(
 ) {
   const agent = await Agent.create({
     apiKey: process.env.CURSOR_API_KEY,
-    model: { id: "grok-4.5" },
+    model: { id: "glm-5.2" },
     local: { cwd: process.cwd() },
   });
 
