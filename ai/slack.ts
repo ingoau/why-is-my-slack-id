@@ -1,12 +1,13 @@
 import { WebClient } from "@slack/web-api";
 import type { SDKCustomTool } from "@cursor/sdk";
+import { env } from "../env";
 
 /**
  * Slack WebClient backed by the user (xoxp) token. search.messages needs a user
  * token — the Bolt app's own client uses the bot token (xoxb), which cannot
  * call search.messages — so we use a separate client here.
  */
-const client = new WebClient(process.env.SLACK_USER_TOKEN!);
+const client = new WebClient(env.SLACK_USER_TOKEN);
 
 /**
  * Search Slack messages via the WebClient (the same SDK @slack/bolt uses).
