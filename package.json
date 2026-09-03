@@ -14,7 +14,7 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@openai/codex-sdk": "^0.146.0",
+    "@cursor/sdk": "^1.0.30",
     "@openrouter/sdk": "^1.2.27",
     "@slack/bolt": "^5.0.0",
     "@t3-oss/env-core": "^0.13.11",
