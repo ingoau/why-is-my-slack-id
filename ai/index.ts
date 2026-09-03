@@ -13,6 +13,14 @@ export async function processSlackId(
   const agent = await Agent.create({
     apiKey: process.env.CURSOR_API_KEY,
     model: { id: "glm-5.2" },
+    mcpServers: {
+      slack: {
+        type: "stdio",
+        command: "npx",
+        args: ["-y", "slack-mcp-server@latest", "--transport", "stdio"],
+        env: { SLACK_MCP_XOXP_TOKEN: process.env.SLACK_USER_TOKEN! },
+      },
+    },
     local: {
       cwd: process.cwd(),
       customTools: {
