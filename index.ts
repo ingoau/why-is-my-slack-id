@@ -21,10 +21,41 @@ const teamFields = Object.fromEntries(
   teamProfile.profile.fields.map((field) => [field.id, field.label]),
 );
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const lastRequestByUser = new Map<string, number>();
+
+function takeDailySlot(
+  userId: string,
+): { ok: true } | { ok: false; retryAt: number } {
+  const now = Date.now();
+  const last = lastRequestByUser.get(userId);
+  if (last !== undefined && now - last < DAY_MS) {
+    return { ok: false, retryAt: last + DAY_MS };
+  }
+  lastRequestByUser.set(userId, now);
+  return { ok: true };
+}
+
 app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
+  if (!event.user) return;
+
+  const rateLimit = takeDailySlot(event.user);
+  if (!rateLimit.ok) {
+    const hoursLeft = Math.max(
+      1,
+      Math.ceil((rateLimit.retryAt - Date.now()) / (60 * 60 * 1000)),
+    );
+    await say({
+      markdown_text: `you can only run this once per day. come back in ~${hoursLeft}h`,
+      thread_ts: event.ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    });
+    return;
+  }
 
   try {
     const profileInfo = await client.users.profile.get({ user: event.user });
@@ -104,8 +135,7 @@ app.message(async ({ event, say, client }) => {
   } catch (error) {
     console.error(error);
     await say({
-      markdown_text:
-        "something went wrong cc <@U0923H02Y3B>",
+      markdown_text: "something went wrong cc <@U0923H02Y3B>",
       thread_ts: event.ts,
       unfurl_links: false,
       unfurl_media: false,
