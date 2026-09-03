@@ -51,37 +51,54 @@ app.message(async ({ event, say, client }) => {
 
   updateStatus("finding the meaning of your slack id...");
 
-  const { events } = await processSlackId(event.user, profileFields);
+  const events = await processSlackId(event.user, profileFields);
 
   let message = "";
+  let thinking = "";
   let completed = false;
+  let lastFlush = 0;
+  const THROTTLE_MS = 2000;
+
+  const maybeUpdateStatus = () => {
+    if (completed) return;
+    const now = Date.now();
+    if (now - lastFlush < THROTTLE_MS) return;
+    // Prefer the answer-in-progress; fall back to recent reasoning so the
+    // status stays live during the long thinking phase early in the turn.
+    const context = message || thinking.slice(-1500);
+    if (!context) return;
+    lastFlush = now;
+    parseStatusUpdate(context)
+      .then((parsed) => {
+        if (!completed) updateStatus(parsed);
+      })
+      .catch(() => {});
+  };
 
   for await (const agentEvent of events) {
-    console.log(agentEvent.type);
-    switch (agentEvent.type) {
-      case "item.completed":
-        if (agentEvent.item.type === "agent_message") {
-          message = agentEvent.item.text;
-          setTimeout(async () => {
-            if (!completed) {
-              const parsed = await parseStatusUpdate(message);
-              // Check again
-              if (!completed) updateStatus(parsed);
-            }
-          }, 100);
-        }
-        break;
+    console.log(JSON.stringify(agentEvent));
+
+    if (agentEvent.type === "thinking" && agentEvent.text) {
+      thinking += agentEvent.text;
+      maybeUpdateStatus();
     }
-    switch (agentEvent.type) {
-      case "turn.completed":
-        completed = true;
-        await say({
-          markdown_text: message,
-          thread_ts: event.ts,
-          unfurl_links: false,
-          unfurl_media: false,
-        });
-        return;
+
+    if (agentEvent.type === "assistant" && agentEvent.message?.content) {
+      for (const part of agentEvent.message.content) {
+        if (part.type === "text") message += part.text;
+      }
+      maybeUpdateStatus();
+    }
+
+    if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
+      completed = true;
+      await say({
+        markdown_text: message,
+        thread_ts: event.ts,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
+      return;
     }
   }
 });
