@@ -11,4 +11,4 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --chown=bun:bun . .
 
 USER bun
-CMD ["bun", "run", "index.ts"]
+CMD ["bun", "run", "start"]
