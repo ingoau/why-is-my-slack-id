@@ -41,6 +41,7 @@ app.message(async ({ event, say, client }) => {
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
   if (!event.user) return;
+  if (event.text?.trimStart().startsWith("##")) return;
 
   const rateLimit = takeDailySlot(event.user);
   if (!rateLimit.ok) {
