@@ -83,8 +83,6 @@ app.message(async ({ event, say, client }) => {
 
     updateStatus("finding the meaning of your slack id...");
 
-    const events = await processSlackId(event.user, profileFields);
-
     let message = "";
     let thinking = "";
     let completed = false;
@@ -107,7 +105,9 @@ app.message(async ({ event, say, client }) => {
         .catch(() => {});
     };
 
-    for await (const agentEvent of events) {
+    for await (const agentEvent of processSlackId(event.user, profileFields)) {
+      if (completed) continue;
+
       if (agentEvent.type === "thinking" && agentEvent.text) {
         if (message) message = "";
         thinking += agentEvent.text;
@@ -129,8 +129,11 @@ app.message(async ({ event, say, client }) => {
           unfurl_links: false,
           unfurl_media: false,
         });
-        return;
       }
+    }
+
+    if (!completed) {
+      throw new Error("agent stream ended without finishing");
     }
   } catch (error) {
     console.error(error);
