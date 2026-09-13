@@ -9,6 +9,10 @@ const app = new App({
   token: env.SLACK_BOT_TOKEN,
 });
 
+const auth = await app.client.auth.test();
+if (!auth.ok || !auth.user_id) throw new Error(auth.error);
+const botUserId = auth.user_id;
+
 const teamProfile = await app.client.team.profile.get();
 if (
   !teamProfile.ok ||
@@ -59,7 +63,12 @@ app.message(async ({ event, say, client }) => {
   }
 
   try {
-    const profileInfo = await client.users.profile.get({ user: event.user });
+    const mentionedUserId = [...(event.text?.matchAll(/<@([UW][A-Z0-9]+)>/g) ?? [])]
+      .map((match) => match[1])
+      .find((userId) => userId !== botUserId);
+    const targetUserId = mentionedUserId ?? event.user;
+
+    const profileInfo = await client.users.profile.get({ user: targetUserId });
     if (
       !profileInfo.ok ||
       profileInfo.profile === undefined ||
@@ -106,7 +115,7 @@ app.message(async ({ event, say, client }) => {
         .catch(() => {});
     };
 
-    for await (const agentEvent of processSlackId(event.user, profileFields)) {
+    for await (const agentEvent of processSlackId(targetUserId, profileFields)) {
       if (completed) continue;
 
       if (agentEvent.type === "thinking" && agentEvent.text) {
