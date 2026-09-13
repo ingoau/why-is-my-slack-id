@@ -4,6 +4,11 @@ import { App } from "@slack/bolt";
 import { env } from "./env.ts";
 import { processSlackId } from "./ai/index.ts";
 import parseStatusUpdate from "./ai/status-updates.ts";
+import {
+  allowedNameWords,
+  findUnexpectedNames,
+  redactPersonalNames,
+} from "./ai/name-guard.ts";
 
 const app = new App({
   socketMode: true,
@@ -272,6 +277,14 @@ app.message(async ({ event, say, client }) => {
       }),
     );
 
+    const profile = profileInfo.profile;
+    const allowedNames = allowedNameWords({
+      realName: profile.real_name,
+      displayName: profile.display_name,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+    });
+
     const updateStatus = (status: string | undefined) =>
       client.assistant.threads.setStatus({
         thread_ts: event.ts,
@@ -299,7 +312,11 @@ app.message(async ({ event, say, client }) => {
       lastFlush = now;
       parseStatusUpdate(context)
         .then((parsed) => {
-          if (!completed) updateStatus(parsed);
+          if (completed || !parsed) return;
+          // the status line quotes the agent's working text, so it gets the
+          // same name check as the report - a hit just skips the update
+          if (findUnexpectedNames(parsed, allowedNames).length > 0) return;
+          updateStatus(parsed);
         })
         .catch(() => {});
     };
@@ -322,8 +339,28 @@ app.message(async ({ event, say, client }) => {
 
       if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
         completed = true;
+        // hard name guard: redact, then verify. redaction unavailable or any
+        // unexpected name left means the report never reaches the channel -
+        // the hits are deliberately not logged, they may be the very thing we
+        // are keeping private
+        const redacted = await redactPersonalNames(message, allowedNames);
+        const blocked =
+          redacted === null ||
+          findUnexpectedNames(redacted, allowedNames).length > 0;
+        if (blocked) {
+          console.error("report blocked by the name guard");
+          lastRequestByUser.delete(event.user);
+          await say({
+            markdown_text:
+              "couldn't put this one together safely, so i'm not posting it. try again later",
+            thread_ts: event.ts,
+            unfurl_links: false,
+            unfurl_media: false,
+          });
+          return;
+        }
         const posted = await say({
-          markdown_text: message,
+          markdown_text: redacted,
           thread_ts: event.ts,
           unfurl_links: false,
           unfurl_media: false,

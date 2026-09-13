@@ -19,6 +19,10 @@ If you're in the [Hack Club Slack](https://slack.hackclub.com/) you can join the
 
 Send `opt out` in the channel to stop anyone from running the bot on you, and `opt in` to undo. You can also opt out a bot with `opt out @bot`. Opt-outs persist in the JSON file configured by `OPT_OUTS_FILE` (`/data/opt-outs.json` by default). The included Docker Compose file mounts `/data` as a named volume, so they survive container restarts and replacements.
 
+## Name guard
+
+Before any report is posted, an automated redactor rewrites it so the only personal names it can contain are the target's current profile names, and a strict checker blocks the post entirely if anything that looks like another person's name remains. A blocked report refunds the daily run and posts a fallback instead. This applies to every run, whether or not anyone has opted out. The same check filters the live status line.
+
 Replying `delete` in a thread removes the bot's analysis from that thread, but only when the person the analysis is about has opted out. The bot remembers which of its messages analyzed whom in the JSON file configured by `ANALYSES_FILE` (`/data/analyses.json` by default), so this keeps working across restarts; only analyses recorded after this change can be deleted this way.
 
 ## Running
