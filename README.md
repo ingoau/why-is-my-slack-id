@@ -17,7 +17,7 @@ If you're in the [Hack Club Slack](https://slack.hackclub.com/) you can join the
 
 ## Opting out
 
-Send `opt out` in the channel to stop anyone from running the bot on you, and `opt in` to undo. You can also opt out a bot with `opt out @bot`. Opt-outs live in memory, so they reset when the bot restarts.
+Send `opt out` in the channel to stop anyone from running the bot on you, and `opt in` to undo. You can also opt out a bot with `opt out @bot`. Opt-outs persist in the JSON file configured by `OPT_OUTS_FILE` (`/data/opt-outs.json` by default). The included Docker Compose file mounts `/data` as a named volume, so they survive container restarts and replacements.
 
 ## Running
 

@@ -5,3 +5,8 @@ services:
     init: true
     env_file:
       - .env
+    volumes:
+      - opt-outs:/data
+
+volumes:
+  opt-outs:

@@ -1,3 +1,5 @@
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { App } from "@slack/bolt";
 import { env } from "./env.ts";
 import { processSlackId } from "./ai/index.ts";
@@ -27,7 +29,27 @@ const teamFields = Object.fromEntries(
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const lastRequestByUser = new Map<string, number>();
-const optedOutUsers = new Set<string>();
+async function loadOptedOutUsers(): Promise<Set<string>> {
+  try {
+    const values: unknown = JSON.parse(await readFile(env.OPT_OUTS_FILE, "utf8"));
+    if (!Array.isArray(values) || !values.every((value) => typeof value === "string")) {
+      throw new Error("opt-out file must contain an array of Slack user IDs");
+    }
+    return new Set(values);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return new Set();
+    throw error;
+  }
+}
+
+async function saveOptedOutUsers(users: Set<string>): Promise<void> {
+  await mkdir(dirname(env.OPT_OUTS_FILE), { recursive: true });
+  const temporaryFile = `${env.OPT_OUTS_FILE}.tmp`;
+  await writeFile(temporaryFile, `${JSON.stringify([...users].sort(), null, 2)}\n`);
+  await rename(temporaryFile, env.OPT_OUTS_FILE);
+}
+
+const optedOutUsers = await loadOptedOutUsers();
 
 function takeDailySlot(
   userId: string,
@@ -78,6 +100,23 @@ app.message(async ({ event, say, client }) => {
       optedOutUsers.add(optTargetId);
     } else {
       optedOutUsers.delete(optTargetId);
+    }
+    try {
+      await saveOptedOutUsers(optedOutUsers);
+    } catch (error) {
+      if (optingOut) {
+        optedOutUsers.delete(optTargetId);
+      } else {
+        optedOutUsers.add(optTargetId);
+      }
+      console.error(error);
+      await say({
+        markdown_text: "couldn't save that opt-out change - nothing changed",
+        thread_ts: event.ts,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
+      return;
     }
 
     let confirmation: string;
