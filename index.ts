@@ -50,6 +50,95 @@ async function saveOptedOutUsers(users: Set<string>): Promise<void> {
 }
 
 const optedOutUsers = await loadOptedOutUsers();
+type AnalysisRecord = {
+  targetUserId: string;
+  messageTs: string;
+  channel: string;
+};
+
+async function loadAnalyses(): Promise<Map<string, AnalysisRecord>> {
+  try {
+    const values: unknown = JSON.parse(await readFile(env.ANALYSES_FILE, "utf8"));
+    if (typeof values !== "object" || values === null || Array.isArray(values)) {
+      throw new Error("analyses file must contain an object keyed by thread ts");
+    }
+    const entries = Object.entries(values as Record<string, AnalysisRecord>);
+    for (const [, record] of entries) {
+      if (
+        typeof record !== "object" || record === null ||
+        typeof record.targetUserId !== "string" ||
+        typeof record.messageTs !== "string" ||
+        typeof record.channel !== "string"
+      ) {
+        throw new Error("analyses file holds malformed records");
+      }
+    }
+    return new Map(entries);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return new Map();
+    throw error;
+  }
+}
+
+async function saveAnalyses(analyses: Map<string, AnalysisRecord>): Promise<void> {
+  await mkdir(dirname(env.ANALYSES_FILE), { recursive: true });
+  const temporaryFile = `${env.ANALYSES_FILE}.tmp`;
+  await writeFile(
+    temporaryFile,
+    `${JSON.stringify(Object.fromEntries(analyses), null, 2)}\n`,
+  );
+  await rename(temporaryFile, env.ANALYSES_FILE);
+}
+
+const analysesByThread = await loadAnalyses();
+
+// "delete" in a thread removes the bot's analysis when its target has opted out
+app.message(async ({ event, say, client }) => {
+  if ("subtype" in event && event.subtype !== undefined) return;
+  if (!event.thread_ts || event.bot_id) return;
+  if (event.channel !== env.CHANNEL_ID) return;
+  if (event.text?.trim().toLowerCase() !== "delete") return;
+
+  const analysis = analysesByThread.get(event.thread_ts);
+  if (!analysis) return;
+
+  if (!optedOutUsers.has(analysis.targetUserId)) {
+    await say({
+      markdown_text: `<@${analysis.targetUserId}> hasn't opted out, so this stays up`,
+      thread_ts: event.thread_ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    });
+    return;
+  }
+
+  try {
+    await client.chat.delete({
+      channel: analysis.channel,
+      ts: analysis.messageTs,
+    });
+  } catch (error) {
+    console.error(error);
+    await say({
+      markdown_text: "couldn't delete that - try again in a bit",
+      thread_ts: event.thread_ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    });
+    return;
+  }
+
+  analysesByThread.delete(event.thread_ts);
+  try {
+    await saveAnalyses(analysesByThread);
+  } catch (error) {
+    // the analysis is already gone from slack; keep the in-memory delete so a
+    // repeated "delete" doesn't fail against a message that no longer exists
+    console.error(error);
+  }
+});
+
+
 
 function takeDailySlot(
   userId: string,
@@ -233,12 +322,25 @@ app.message(async ({ event, say, client }) => {
 
       if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
         completed = true;
-        await say({
+        const posted = await say({
           markdown_text: message,
           thread_ts: event.ts,
           unfurl_links: false,
           unfurl_media: false,
         });
+        if (posted.ts !== undefined) {
+          analysesByThread.set(event.ts, {
+            targetUserId,
+            messageTs: posted.ts,
+            channel: event.channel,
+          });
+          try {
+            await saveAnalyses(analysesByThread);
+          } catch (error) {
+            // losing the record only means a later "delete" is ignored
+            console.error(error);
+          }
+        }
       }
     }
 

@@ -10,6 +10,7 @@ export const env = createEnv({
     CURSOR_API_KEY: z.string().min(1),
     SLACK_USER_TOKEN: z.string().min(1),
     OPT_OUTS_FILE: z.string().min(1).default("/data/opt-outs.json"),
+    ANALYSES_FILE: z.string().min(1).default("/data/analyses.json"),
   },
 
   /**
