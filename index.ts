@@ -27,6 +27,7 @@ const teamFields = Object.fromEntries(
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const lastRequestByUser = new Map<string, number>();
+const optedOutUsers = new Set<string>();
 
 function takeDailySlot(
   userId: string,
@@ -47,6 +48,71 @@ app.message(async ({ event, say, client }) => {
   if (!event.user) return;
   if (event.text?.trimStart().startsWith("##")) return;
 
+  const text = event.text?.trim() ?? "";
+  const mentionedUserId = [...text.matchAll(/<@([UW][A-Z0-9]+)>/g)]
+    .map((match) => match[1])
+    .find((userId) => userId !== botUserId);
+
+  const optCommand = /^opt[- ]?(in|out)\b/i.exec(text);
+  if (optCommand) {
+    const direction = optCommand[1]?.toLowerCase();
+    if (direction !== "in" && direction !== "out") return;
+    const optingOut = direction === "out";
+    const optTargetId = mentionedUserId ?? event.user;
+
+    // anyone can opt a bot out (bots can't consent); people opt themselves out
+    if (optTargetId !== event.user) {
+      const targetInfo = await client.users.info({ user: optTargetId });
+      if (!targetInfo.ok || !targetInfo.user?.is_bot) {
+        await say({
+          markdown_text: "you can only opt out yourself or a bot",
+          thread_ts: event.ts,
+          unfurl_links: false,
+          unfurl_media: false,
+        });
+        return;
+      }
+    }
+
+    if (optingOut) {
+      optedOutUsers.add(optTargetId);
+    } else {
+      optedOutUsers.delete(optTargetId);
+    }
+
+    let confirmation: string;
+    if (optTargetId === event.user) {
+      confirmation = optingOut
+        ? "you're opted out - nobody can run this on you anymore. send `opt in` to undo"
+        : "you're back in - send `opt out` anytime to leave again";
+    } else {
+      confirmation = optingOut
+        ? `<@${optTargetId}> is opted out - send \`opt in <@${optTargetId}>\` to undo`
+        : `<@${optTargetId}> is back in`;
+    }
+    await say({
+      markdown_text: confirmation,
+      thread_ts: event.ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    });
+    return;
+  }
+
+  const targetUserId = mentionedUserId ?? event.user;
+  if (optedOutUsers.has(targetUserId)) {
+    await say({
+      markdown_text:
+        targetUserId === event.user
+          ? "you've opted out of this - send `opt in` if you want back in"
+          : `<@${targetUserId}> has opted out of this, so their slack id stays a mystery`,
+      thread_ts: event.ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    });
+    return;
+  }
+
   const rateLimit = takeDailySlot(event.user);
   if (!rateLimit.ok) {
     const hoursLeft = Math.max(
@@ -63,11 +129,6 @@ app.message(async ({ event, say, client }) => {
   }
 
   try {
-    const mentionedUserId = [...(event.text?.matchAll(/<@([UW][A-Z0-9]+)>/g) ?? [])]
-      .map((match) => match[1])
-      .find((userId) => userId !== botUserId);
-    const targetUserId = mentionedUserId ?? event.user;
-
     const profileInfo = await client.users.profile.get({ user: targetUserId });
     if (
       !profileInfo.ok ||
