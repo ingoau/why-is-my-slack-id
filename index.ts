@@ -40,6 +40,44 @@ function takeDailySlot(
   return { ok: true };
 }
 
+const DELETE_ACTION_ID = "delete_analysis";
+
+type DeleteButtonValue = { requester: string; target: string };
+
+// Only the person who asked for the analysis, or the person it's about, can
+// delete it.
+app.action(DELETE_ACTION_ID, async ({ ack, body, action, client }) => {
+  await ack();
+  if (body.type !== "block_actions" || action.type !== "button") return;
+
+  const channel = body.channel?.id;
+  const ts = body.message?.ts;
+  if (!channel || !ts) return;
+
+  let allowed: DeleteButtonValue;
+  try {
+    allowed = JSON.parse(action.value ?? "");
+  } catch {
+    return;
+  }
+
+  if (body.user.id !== allowed.requester && body.user.id !== allowed.target) {
+    const who =
+      allowed.requester === allowed.target
+        ? `<@${allowed.requester}>`
+        : `<@${allowed.requester}> or <@${allowed.target}>`;
+    await client.chat.postEphemeral({
+      channel,
+      user: body.user.id,
+      thread_ts: body.message?.thread_ts,
+      text: `only ${who} can delete this`,
+    });
+    return;
+  }
+
+  await client.chat.delete({ channel, ts });
+});
+
 app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
@@ -133,8 +171,37 @@ app.message(async ({ event, say, client }) => {
 
       if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
         completed = true;
+        const deleteValue: DeleteButtonValue = {
+          requester: event.user,
+          target: targetUserId,
+        };
         await say({
-          markdown_text: message,
+          text: message,
+          blocks: [
+            { type: "markdown", text: message },
+            {
+              type: "actions",
+              elements: [
+                {
+                  type: "button",
+                  action_id: DELETE_ACTION_ID,
+                  text: { type: "plain_text", text: "Delete" },
+                  style: "danger",
+                  value: JSON.stringify(deleteValue),
+                  confirm: {
+                    title: { type: "plain_text", text: "Delete this message?" },
+                    text: {
+                      type: "plain_text",
+                      text: "This will permanently remove the analysis.",
+                    },
+                    confirm: { type: "plain_text", text: "Delete" },
+                    deny: { type: "plain_text", text: "Cancel" },
+                    style: "danger",
+                  },
+                },
+              ],
+            },
+          ],
           thread_ts: event.ts,
           unfurl_links: false,
           unfurl_media: false,
