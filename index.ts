@@ -2,6 +2,7 @@ import { App } from "@slack/bolt";
 import { env } from "./env.ts";
 import { processSlackId } from "./ai/index.ts";
 import parseStatusUpdate from "./ai/status-updates.ts";
+import { DailyRateLimiter } from "./rate-limit.ts";
 
 const app = new App({
   socketMode: true,
@@ -25,20 +26,7 @@ const teamFields = Object.fromEntries(
   teamProfile.profile.fields.map((field) => [field.id, field.label]),
 );
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const lastRequestByUser = new Map<string, number>();
-
-function takeDailySlot(
-  userId: string,
-): { ok: true } | { ok: false; retryAt: number } {
-  const now = Date.now();
-  const last = lastRequestByUser.get(userId);
-  if (last !== undefined && now - last < DAY_MS) {
-    return { ok: false, retryAt: last + DAY_MS };
-  }
-  lastRequestByUser.set(userId, now);
-  return { ok: true };
-}
+const dailyRateLimiter = new DailyRateLimiter();
 
 const DELETE_ACTION_ID = "delete_analysis";
 
@@ -85,8 +73,8 @@ app.message(async ({ event, say, client }) => {
   if (!event.user) return;
   if (event.text?.trimStart().startsWith("##")) return;
 
-  const rateLimit = takeDailySlot(event.user);
-  if (!rateLimit.ok) {
+  const rateLimit = dailyRateLimiter.tryReserve(event.user);
+  if (rateLimit.ok === false) {
     const hoursLeft = Math.max(
       1,
       Math.ceil((rateLimit.retryAt - Date.now()) / (60 * 60 * 1000)),
@@ -111,8 +99,10 @@ app.message(async ({ event, say, client }) => {
       !profileInfo.ok ||
       profileInfo.profile === undefined ||
       profileInfo.profile.fields === undefined
-    )
+    ) {
+      rateLimit.release();
       return;
+    }
 
     const profileFields = Object.entries(profileInfo.profile?.fields).map(
       ([id, field]) => ({
@@ -206,6 +196,7 @@ app.message(async ({ event, say, client }) => {
           unfurl_links: false,
           unfurl_media: false,
         });
+        rateLimit.commit();
       }
     }
 
@@ -213,6 +204,7 @@ app.message(async ({ event, say, client }) => {
       throw new Error("agent stream ended without finishing");
     }
   } catch (error) {
+    rateLimit.release();
     console.error(error);
     await say({
       markdown_text: "something went wrong cc <@U0923H02Y3B>",
