@@ -221,7 +221,7 @@ app.message(async ({ event, say, client }) => {
         channel_id: event.channel,
         status: "is finding the meaning of your slack id...",
         loading_messages: [status || "finding the meaning of your slack id..."],
-      });
+      }).catch((error) => console.error("failed to set status", error));
 
     updateStatus("finding the meaning of your slack id...");
 
@@ -242,7 +242,7 @@ app.message(async ({ event, say, client }) => {
       lastFlush = now;
       parseStatusUpdate(context)
         .then((parsed) => {
-          if (!completed) updateStatus(parsed);
+          if (!completed && !timeout.signal.aborted) updateStatus(parsed);
         })
         .catch(() => {});
     };
@@ -304,6 +304,8 @@ app.message(async ({ event, say, client }) => {
           unfurl_media: false,
         });
         commitDailySlot(user);
+        // The reply is out; don't report a timeout while the run tears down.
+        clearTimeout(timer);
         console.log("posted analysis", {
           requester: user,
           target: targetUserId,
