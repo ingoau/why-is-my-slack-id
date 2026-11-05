@@ -27,17 +27,67 @@ const teamFields = Object.fromEntries(
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const lastRequestByUser = new Map<string, number>();
+// Users with a run in progress. Guards against concurrent messages skipping
+// the daily limit while the slot hasn't been committed yet.
+const inFlightUsers = new Set<string>();
 
-function takeDailySlot(
-  userId: string,
-): { ok: true } | { ok: false; retryAt: number } {
-  const now = Date.now();
+type SlotResult =
+  | { ok: true }
+  | { ok: false; reason: "daily"; retryAt: number }
+  | { ok: false; reason: "in_flight" };
+
+// Reserve a run for this user. The slot only counts towards the daily limit
+// once `commitDailySlot` is called (after the reply is posted); otherwise
+// `releaseDailySlot` frees it again.
+function reserveDailySlot(userId: string): SlotResult {
+  if (inFlightUsers.has(userId)) return { ok: false, reason: "in_flight" };
   const last = lastRequestByUser.get(userId);
-  if (last !== undefined && now - last < DAY_MS) {
-    return { ok: false, retryAt: last + DAY_MS };
+  if (last !== undefined && Date.now() - last < DAY_MS) {
+    return { ok: false, reason: "daily", retryAt: last + DAY_MS };
   }
-  lastRequestByUser.set(userId, now);
+  inFlightUsers.add(userId);
   return { ok: true };
+}
+
+function commitDailySlot(userId: string) {
+  lastRequestByUser.set(userId, Date.now());
+}
+
+function releaseDailySlot(userId: string) {
+  inFlightUsers.delete(userId);
+}
+
+// Normal runs take ~1.5–3 min.
+const RUN_TIMEOUT_MS = 6 * 60 * 1000;
+
+class RunTimeoutError extends Error {
+  constructor() {
+    super(`agent run timed out after ${RUN_TIMEOUT_MS / 1000}s`);
+  }
+}
+
+// Iterate `source`, failing with RunTimeoutError if it isn't finished when
+// `signal` aborts, even if the underlying iterator is stuck.
+async function* untilAborted<T>(
+  source: AsyncGenerator<T>,
+  signal: AbortSignal,
+): AsyncGenerator<T> {
+  const aborted = new Promise<never>((_, reject) => {
+    const fail = () => reject(new RunTimeoutError());
+    if (signal.aborted) fail();
+    else signal.addEventListener("abort", fail, { once: true });
+  });
+  aborted.catch(() => {});
+  try {
+    while (true) {
+      const next = await Promise.race([source.next(), aborted]);
+      if (next.done) return;
+      yield next.value;
+    }
+  } finally {
+    // Don't await: if the source is hung, return() may never settle.
+    source.return(undefined).catch(() => {});
+  }
 }
 
 const DELETE_ACTION_ID = "delete_analysis";
@@ -61,7 +111,16 @@ app.action(DELETE_ACTION_ID, async ({ ack, body, action, client }) => {
     return;
   }
 
+  const logContext = {
+    deletedBy: body.user.id,
+    requester: allowed.requester,
+    target: allowed.target,
+    channel,
+    ts,
+  };
+
   if (body.user.id !== allowed.requester && body.user.id !== allowed.target) {
+    console.log("refused analysis delete", logContext);
     const who =
       allowed.requester === allowed.target
         ? `<@${allowed.requester}>`
@@ -75,6 +134,7 @@ app.action(DELETE_ACTION_ID, async ({ ack, body, action, client }) => {
     return;
   }
 
+  console.log("deleting analysis", logContext);
   await client.chat.delete({ channel, ts });
 });
 
@@ -85,7 +145,17 @@ app.message(async ({ event, say, client }) => {
   if (!event.user) return;
   if (event.text?.trimStart().startsWith("##")) return;
 
-  const rateLimit = takeDailySlot(event.user);
+  const user = event.user;
+  const rateLimit = reserveDailySlot(user);
+  if (!rateLimit.ok && rateLimit.reason === "in_flight") {
+    await say({
+      markdown_text: "you already have one running, hang tight",
+      thread_ts: event.ts,
+      unfurl_links: false,
+      unfurl_media: false,
+    });
+    return;
+  }
   if (!rateLimit.ok) {
     const hoursLeft = Math.max(
       1,
@@ -100,21 +170,45 @@ app.message(async ({ event, say, client }) => {
     return;
   }
 
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), RUN_TIMEOUT_MS);
+
   try {
     const mentionedUserId = [...(event.text?.matchAll(/<@([UW][A-Z0-9]+)>/g) ?? [])]
       .map((match) => match[1])
       .find((userId) => userId !== botUserId);
     const targetUserId = mentionedUserId ?? event.user;
 
-    const profileInfo = await client.users.profile.get({ user: targetUserId });
-    if (
-      !profileInfo.ok ||
-      profileInfo.profile === undefined ||
-      profileInfo.profile.fields === undefined
-    )
+    let profileInfo;
+    try {
+      profileInfo = await client.users.profile.get({ user: targetUserId });
+    } catch (error) {
+      profileInfo = {
+        ok: false,
+        error: (error as { data?: { error?: string } }).data?.error ?? String(error),
+        profile: undefined,
+      };
+    }
+    if (!profileInfo.ok || profileInfo.profile === undefined) {
+      console.error("profile lookup failed", {
+        targetUserId,
+        error: profileInfo.error,
+      });
+      await say({
+        markdown_text:
+          profileInfo.error === "user_not_found"
+            ? `couldn't find <@${targetUserId}>. is that a real user?`
+            : `couldn't look up <@${targetUserId}>'s profile (${profileInfo.error ?? "unknown error"})`,
+        thread_ts: event.ts,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
       return;
+    }
 
-    const profileFields = Object.entries(profileInfo.profile?.fields).map(
+    // Users who never filled in custom fields have none; the agent can still
+    // search Slack and the web.
+    const profileFields = Object.entries(profileInfo.profile.fields ?? {}).map(
       ([id, field]) => ({
         ...field,
         name: teamFields[id],
@@ -153,7 +247,10 @@ app.message(async ({ event, say, client }) => {
         .catch(() => {});
     };
 
-    for await (const agentEvent of processSlackId(targetUserId, profileFields)) {
+    for await (const agentEvent of untilAborted(
+      processSlackId(targetUserId, profileFields, timeout.signal),
+      timeout.signal,
+    )) {
       if (completed) continue;
 
       if (agentEvent.type === "thinking" && agentEvent.text) {
@@ -172,10 +269,10 @@ app.message(async ({ event, say, client }) => {
       if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
         completed = true;
         const deleteValue: DeleteButtonValue = {
-          requester: event.user,
+          requester: user,
           target: targetUserId,
         };
-        await say({
+        const posted = await say({
           text: message,
           blocks: [
             { type: "markdown", text: message },
@@ -206,6 +303,13 @@ app.message(async ({ event, say, client }) => {
           unfurl_links: false,
           unfurl_media: false,
         });
+        commitDailySlot(user);
+        console.log("posted analysis", {
+          requester: user,
+          target: targetUserId,
+          channel: event.channel,
+          ts: posted.ts,
+        });
       }
     }
 
@@ -213,7 +317,11 @@ app.message(async ({ event, say, client }) => {
       throw new Error("agent stream ended without finishing");
     }
   } catch (error) {
-    console.error(error);
+    console.error("analysis failed", {
+      requester: user,
+      timedOut: error instanceof RunTimeoutError,
+      error,
+    });
     await say({
       markdown_text: "something went wrong cc <@U0923H02Y3B>",
       thread_ts: event.ts,
@@ -221,6 +329,9 @@ app.message(async ({ event, say, client }) => {
       unfurl_media: false,
     });
     return;
+  } finally {
+    clearTimeout(timer);
+    releaseDailySlot(user);
   }
 });
 
