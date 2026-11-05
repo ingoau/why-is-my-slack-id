@@ -11,6 +11,7 @@ export async function* processSlackId(
     label?: string | undefined;
     value?: string | undefined;
   }[],
+  signal?: AbortSignal,
 ) {
   await using agent = await Agent.create({
     apiKey: env.CURSOR_API_KEY,
@@ -43,9 +44,17 @@ export async function* processSlackId(
         .join(""),
   );
 
+  const onAbort = () => {
+    run.cancel().catch((error) => console.error("failed to cancel run", error));
+  };
+  if (signal?.aborted) onAbort();
+  signal?.addEventListener("abort", onAbort, { once: true });
+
   try {
     yield* run.stream();
   } finally {
+    signal?.removeEventListener("abort", onAbort);
+    if (signal?.aborted) return;
     const result = await run.wait();
     if (result.status !== "finished") {
       throw new Error(`agent run ended with ${result.status}`);
