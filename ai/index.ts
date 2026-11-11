@@ -14,7 +14,7 @@ export async function* processSlackId(
 ) {
   await using agent = await Agent.create({
     apiKey: env.CURSOR_API_KEY,
-    model: { id: "grok-4.5" },
+    model: { id: "grok-4.6" },
     local: {
       cwd: process.cwd(),
       customTools: {
