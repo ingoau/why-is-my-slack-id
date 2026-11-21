@@ -6,7 +6,8 @@ RUN bun install --frozen-lockfile --production
 # Bolt 5 Socket Mode heartbeats call undici.ping(). Bun's builtin undici
 # shim does not export that, so the connection dies on the first ping.
 # Runtime matches local `node index.ts`.
-FROM node:24-bookworm-slim
+# Pinned to >= 24.22.1 for CVE-2026-111497 (Node2Shell, Brotli decoder RCE).
+FROM node:24.22.3-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 
