@@ -14,10 +14,13 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@cursor/sdk": "^1.0.30",
+    "@cursor/sdk": "^1.4.2",
     "@openrouter/sdk": "^1.2.27",
     "@slack/bolt": "^5.0.0",
     "@t3-oss/env-core": "^0.13.11",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
+  },
+  "overrides": {
+    "undici": "^7.30.1"
   }
 }
