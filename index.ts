@@ -40,13 +40,12 @@ type SlotResult =
 // once `commitDailySlot` is called (after the reply is posted); otherwise
 // `releaseDailySlot` frees it again.
 function reserveDailySlot(userId: string): SlotResult {
+  // Both checks below only enforce the daily limit. With it disabled, users
+  // can run as many analyses as they like, including several at once.
+  if (env.DISABLE_RATE_LIMIT) return { ok: true };
   if (inFlightUsers.has(userId)) return { ok: false, reason: "in_flight" };
   const last = lastRequestByUser.get(userId);
-  if (
-    !env.DISABLE_RATE_LIMIT &&
-    last !== undefined &&
-    Date.now() - last < DAY_MS
-  ) {
+  if (last !== undefined && Date.now() - last < DAY_MS) {
     return { ok: false, reason: "daily", retryAt: last + DAY_MS };
   }
   inFlightUsers.add(userId);
@@ -70,14 +69,25 @@ class RunTimeoutError extends Error {
   }
 }
 
-// Iterate `source`, failing with RunTimeoutError if it isn't finished when
+class RequestDeletedError extends Error {
+  constructor() {
+    super("request message was deleted");
+  }
+}
+
+// Runs in progress, keyed by the request message, so deleting the request
+// can cancel its run.
+const runsByMessage = new Map<string, AbortController>();
+const messageKey = (channel: string, ts: string) => `${channel}:${ts}`;
+
+// Iterate `source`, failing with `signal.reason` if it isn't finished when
 // `signal` aborts, even if the underlying iterator is stuck.
 async function* untilAborted<T>(
   source: AsyncGenerator<T>,
   signal: AbortSignal,
 ): AsyncGenerator<T> {
   const aborted = new Promise<never>((_, reject) => {
-    const fail = () => reject(new RunTimeoutError());
+    const fail = () => reject(signal.reason);
     if (signal.aborted) fail();
     else signal.addEventListener("abort", fail, { once: true });
   });
@@ -142,6 +152,30 @@ app.action(DELETE_ACTION_ID, async ({ ack, body, action, client }) => {
   await client.chat.delete({ channel, ts });
 });
 
+// If the request message is deleted mid-run, stop: replying to a deleted
+// thread parent would post into the main channel instead.
+app.event("message", async ({ event }) => {
+  let deletedTs: string | undefined;
+  if (event.subtype === "message_deleted") {
+    deletedTs = event.deleted_ts;
+  } else if (
+    event.subtype === "message_changed" &&
+    (event.message as { subtype?: string }).subtype === "tombstone"
+  ) {
+    // A deleted parent that already has replies becomes a tombstone.
+    deletedTs = event.message.ts;
+  }
+  if (!deletedTs) return;
+
+  const run = runsByMessage.get(messageKey(event.channel, deletedTs));
+  if (!run || run.signal.aborted) return;
+  console.log("request deleted, cancelling run", {
+    channel: event.channel,
+    ts: deletedTs,
+  });
+  run.abort(new RequestDeletedError());
+});
+
 app.message(async ({ event, say, client }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
@@ -175,7 +209,12 @@ app.message(async ({ event, say, client }) => {
   }
 
   const timeout = new AbortController();
-  const timer = setTimeout(() => timeout.abort(), RUN_TIMEOUT_MS);
+  const timer = setTimeout(
+    () => timeout.abort(new RunTimeoutError()),
+    RUN_TIMEOUT_MS,
+  );
+  const runKey = messageKey(event.channel, event.ts);
+  runsByMessage.set(runKey, timeout);
 
   try {
     const mentionedUserId = [...(event.text?.matchAll(/<@([UW][A-Z0-9]+)>/g) ?? [])]
@@ -193,6 +232,7 @@ app.message(async ({ event, say, client }) => {
         profile: undefined,
       };
     }
+    if (timeout.signal.aborted) throw timeout.signal.reason;
     if (!profileInfo.ok || profileInfo.profile === undefined) {
       console.error("profile lookup failed", {
         targetUserId,
@@ -271,6 +311,7 @@ app.message(async ({ event, say, client }) => {
       }
 
       if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
+        if (timeout.signal.aborted) throw timeout.signal.reason;
         completed = true;
         const deleteValue: DeleteButtonValue = {
           requester: user,
@@ -320,9 +361,15 @@ app.message(async ({ event, say, client }) => {
     }
 
     if (!completed) {
+      if (timeout.signal.aborted) throw timeout.signal.reason;
       throw new Error("agent stream ended without finishing");
     }
   } catch (error) {
+    // Any reply would land in the main channel now that the parent is gone.
+    if (timeout.signal.reason instanceof RequestDeletedError) {
+      console.log("analysis cancelled, request deleted", { requester: user });
+      return;
+    }
     console.error("analysis failed", {
       requester: user,
       timedOut: error instanceof RunTimeoutError,
@@ -337,6 +384,7 @@ app.message(async ({ event, say, client }) => {
     return;
   } finally {
     clearTimeout(timer);
+    runsByMessage.delete(runKey);
     releaseDailySlot(user);
   }
 });

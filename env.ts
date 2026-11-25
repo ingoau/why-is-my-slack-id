@@ -9,7 +9,8 @@ export const env = createEnv({
     OPENROUTER_KEY: z.string().min(1),
     CURSOR_API_KEY: z.string().min(1),
     SLACK_USER_TOKEN: z.string().min(1),
-    // Set to "true" to skip the once-per-day-per-user limit.
+    // Set to "true" to skip the once-per-day-per-user limit and allow a user
+    // to run several analyses at once.
     DISABLE_RATE_LIMIT: z.stringbool().default(false),
   },
 
