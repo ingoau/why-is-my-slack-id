@@ -12,6 +12,8 @@ export const env = createEnv({
     // Set to "true" to skip the once-per-day-per-user limit and allow a user
     // to run several analyses at once.
     DISABLE_RATE_LIMIT: z.stringbool().default(false),
+    // Analyses allowed to run at once across all users; the rest are queued.
+    MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
   },
 
   /**

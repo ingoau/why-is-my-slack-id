@@ -1,6 +1,6 @@
 import { Agent } from "@cursor/sdk";
 import { agent as agentPrompt } from "./prompts.ts";
-import { slackSearchTool } from "./slack.ts";
+import { createSlackSearchTool } from "./slack.ts";
 import { env } from "../env.ts";
 
 export async function* processSlackId(
@@ -25,7 +25,7 @@ export async function* processSlackId(
             return Math.random();
           },
         },
-        slack_search_messages: slackSearchTool,
+        slack_search_messages: createSlackSearchTool(signal),
       },
     },
     tools: ["webFetch", "webSearch", "mcp"],

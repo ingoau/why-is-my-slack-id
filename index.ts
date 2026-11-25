@@ -80,6 +80,63 @@ class RequestDeletedError extends Error {
 const runsByMessage = new Map<string, AbortController>();
 const messageKey = (channel: string, ts: string) => `${channel}:${ts}`;
 
+// At most MAX_CONCURRENT_RUNS analyses run at once across everyone; the rest
+// wait in a FIFO queue. Every run shares one Slack search token, so running
+// too many at once just makes them all time out.
+let activeRuns = 0;
+const runWaiters: Array<() => void> = [];
+
+type RunSlot = {
+  // 0 if the run can start now, otherwise its place in the queue.
+  position: number;
+  // Resolves once the run may start; rejects with the reason if `signal`
+  // aborts first.
+  ready: Promise<void>;
+  // Frees the slot, or leaves the queue. Safe to call more than once.
+  release: () => void;
+};
+
+function acquireRunSlot(signal: AbortSignal): RunSlot {
+  let state: "waiting" | "active" | "released" = "waiting";
+  let grant!: () => void;
+  const ready = new Promise<void>((resolve, reject) => {
+    grant = () => {
+      state = "active";
+      activeRuns++;
+      resolve();
+    };
+    if (signal.aborted) reject(signal.reason);
+    signal.addEventListener("abort", () => reject(signal.reason), {
+      once: true,
+    });
+  });
+  ready.catch(() => {});
+
+  const release = () => {
+    if (state === "active") {
+      activeRuns--;
+      startQueuedRuns();
+    } else if (state === "waiting") {
+      const i = runWaiters.indexOf(grant);
+      if (i !== -1) runWaiters.splice(i, 1);
+    }
+    state = "released";
+  };
+
+  if (activeRuns < env.MAX_CONCURRENT_RUNS && runWaiters.length === 0) {
+    grant();
+    return { position: 0, ready, release };
+  }
+  runWaiters.push(grant);
+  return { position: runWaiters.length, ready, release };
+}
+
+function startQueuedRuns() {
+  while (activeRuns < env.MAX_CONCURRENT_RUNS && runWaiters.length > 0) {
+    runWaiters.shift()!();
+  }
+}
+
 // Iterate `source`, failing with `signal.reason` if it isn't finished when
 // `signal` aborts, even if the underlying iterator is stuck.
 async function* untilAborted<T>(
@@ -208,13 +265,12 @@ app.message(async ({ event, say, client }) => {
     return;
   }
 
-  const timeout = new AbortController();
-  const timer = setTimeout(
-    () => timeout.abort(new RunTimeoutError()),
-    RUN_TIMEOUT_MS,
-  );
+  // Aborted when the run times out or the request message is deleted.
+  const runControl = new AbortController();
   const runKey = messageKey(event.channel, event.ts);
-  runsByMessage.set(runKey, timeout);
+  runsByMessage.set(runKey, runControl);
+  let slot: RunSlot | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
 
   try {
     const mentionedUserId = [...(event.text?.matchAll(/<@([UW][A-Z0-9]+)>/g) ?? [])]
@@ -232,7 +288,7 @@ app.message(async ({ event, say, client }) => {
         profile: undefined,
       };
     }
-    if (timeout.signal.aborted) throw timeout.signal.reason;
+    if (runControl.signal.aborted) throw runControl.signal.reason;
     if (!profileInfo.ok || profileInfo.profile === undefined) {
       console.error("profile lookup failed", {
         targetUserId,
@@ -257,6 +313,23 @@ app.message(async ({ event, say, client }) => {
         ...field,
         name: teamFields[id],
       }),
+    );
+
+    slot = acquireRunSlot(runControl.signal);
+    if (slot.position > 0) {
+      console.log("run queued", { requester: user, position: slot.position });
+      await say({
+        markdown_text: `you're #${slot.position} in the queue, hang tight`,
+        thread_ts: event.ts,
+        unfurl_links: false,
+        unfurl_media: false,
+      });
+    }
+    await slot.ready;
+    // The timeout covers the run itself, not time spent in the queue.
+    timer = setTimeout(
+      () => runControl.abort(new RunTimeoutError()),
+      RUN_TIMEOUT_MS,
     );
 
     const updateStatus = (status: string | undefined) =>
@@ -286,14 +359,14 @@ app.message(async ({ event, say, client }) => {
       lastFlush = now;
       parseStatusUpdate(context)
         .then((parsed) => {
-          if (!completed && !timeout.signal.aborted) updateStatus(parsed);
+          if (!completed && !runControl.signal.aborted) updateStatus(parsed);
         })
         .catch(() => {});
     };
 
     for await (const agentEvent of untilAborted(
-      processSlackId(targetUserId, profileFields, timeout.signal),
-      timeout.signal,
+      processSlackId(targetUserId, profileFields, runControl.signal),
+      runControl.signal,
     )) {
       if (completed) continue;
 
@@ -311,7 +384,7 @@ app.message(async ({ event, say, client }) => {
       }
 
       if (agentEvent.type === "status" && agentEvent.status === "FINISHED") {
-        if (timeout.signal.aborted) throw timeout.signal.reason;
+        if (runControl.signal.aborted) throw runControl.signal.reason;
         completed = true;
         const deleteValue: DeleteButtonValue = {
           requester: user,
@@ -361,12 +434,12 @@ app.message(async ({ event, say, client }) => {
     }
 
     if (!completed) {
-      if (timeout.signal.aborted) throw timeout.signal.reason;
+      if (runControl.signal.aborted) throw runControl.signal.reason;
       throw new Error("agent stream ended without finishing");
     }
   } catch (error) {
     // Any reply would land in the main channel now that the parent is gone.
-    if (timeout.signal.reason instanceof RequestDeletedError) {
+    if (runControl.signal.reason instanceof RequestDeletedError) {
       console.log("analysis cancelled, request deleted", { requester: user });
       return;
     }
@@ -384,6 +457,7 @@ app.message(async ({ event, say, client }) => {
     return;
   } finally {
     clearTimeout(timer);
+    slot?.release();
     runsByMessage.delete(runKey);
     releaseDailySlot(user);
   }
