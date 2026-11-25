@@ -42,7 +42,11 @@ type SlotResult =
 function reserveDailySlot(userId: string): SlotResult {
   if (inFlightUsers.has(userId)) return { ok: false, reason: "in_flight" };
   const last = lastRequestByUser.get(userId);
-  if (last !== undefined && Date.now() - last < DAY_MS) {
+  if (
+    !env.DISABLE_RATE_LIMIT &&
+    last !== undefined &&
+    Date.now() - last < DAY_MS
+  ) {
     return { ok: false, reason: "daily", retryAt: last + DAY_MS };
   }
   inFlightUsers.add(userId);

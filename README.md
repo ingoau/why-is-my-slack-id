@@ -17,6 +17,6 @@ If you're in the [Hack Club Slack](https://slack.hackclub.com/) you can join the
 
 ## Running
 
-1. Populate env
+1. Populate env (set `DISABLE_RATE_LIMIT=true` to turn off the once-per-day limit)
 2. In the Slack app settings, turn on **Interactivity & Shortcuts** (needed for the Delete button; with Socket Mode no request URL is required)
 3. `docker compose up -d`
