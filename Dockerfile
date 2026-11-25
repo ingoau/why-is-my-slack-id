@@ -13,6 +13,8 @@ ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --chown=node:node . .
+# Pending requests live here (a volume, see docker-compose.yml).
+RUN mkdir -p /app/data && chown node:node /app/data
 
 USER node
 CMD ["node", "index.ts"]

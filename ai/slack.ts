@@ -23,9 +23,10 @@ const client = new WebClient(env.SLACK_USER_TOKEN, {
 });
 
 // search.messages is Tier 2 (~20/min) and every run shares the one user
-// token, so all searches go through a single queue, one at a time, spaced to
-// stay under the limit. A 429 pauses the whole queue for Slack's retry-after.
-const SEARCH_INTERVAL_MS = 3_000;
+// token, so all searches go through a single queue, one at a time and spaced
+// out. Slack allows short bursts above 20/min; if we do hit the limit, a 429
+// pauses the whole queue for Slack's retry-after.
+const SEARCH_INTERVAL_MS = 1_500;
 
 type SearchJob = {
   params: SearchMessagesArguments;

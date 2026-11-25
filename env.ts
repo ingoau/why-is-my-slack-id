@@ -14,6 +14,8 @@ export const env = createEnv({
     DISABLE_RATE_LIMIT: z.stringbool().default(false),
     // Analyses allowed to run at once across all users; the rest are queued.
     MAX_CONCURRENT_RUNS: z.coerce.number().int().positive().default(3),
+    // Where pending requests are saved so they survive a restart.
+    STATE_DIR: z.string().default("data"),
   },
 
   /**

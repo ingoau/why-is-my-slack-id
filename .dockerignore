@@ -12,3 +12,4 @@ docker-compose*.yml
 coverage
 dist
 out
+data

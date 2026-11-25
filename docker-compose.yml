@@ -5,3 +5,9 @@ services:
     init: true
     env_file:
       - .env
+    volumes:
+      # Pending requests, so a redeploy resumes the queue.
+      - data:/app/data
+
+volumes:
+  data:

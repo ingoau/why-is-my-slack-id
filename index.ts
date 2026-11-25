@@ -1,5 +1,12 @@
 import { App } from "@slack/bolt";
+import type { ChatPostMessageArguments } from "@slack/web-api";
 import { env } from "./env.ts";
+import {
+  addPending,
+  loadPending,
+  removePending,
+  type Request,
+} from "./pending.ts";
 import { processSlackId } from "./ai/index.ts";
 import parseStatusUpdate from "./ai/status-updates.ts";
 
@@ -60,8 +67,9 @@ function releaseDailySlot(userId: string) {
   inFlightUsers.delete(userId);
 }
 
-// Normal runs take ~1.5–3 min.
-const RUN_TIMEOUT_MS = 6 * 60 * 1000;
+// Normal runs take ~1.5–3 min alone, longer when sharing the search queue
+// with other runs.
+const RUN_TIMEOUT_MS = 10 * 60 * 1000;
 
 class RunTimeoutError extends Error {
   constructor() {
@@ -233,22 +241,43 @@ app.event("message", async ({ event }) => {
   run.abort(new RequestDeletedError());
 });
 
-app.message(async ({ event, say, client }) => {
+app.message(async ({ event }) => {
   if ("subtype" in event && event.subtype !== undefined) return;
   if (event.thread_ts || event.bot_id) return;
   if (event.channel !== env.CHANNEL_ID) return;
   if (!event.user) return;
   if (event.text?.trimStart().startsWith("##")) return;
 
-  const user = event.user;
-  const rateLimit = reserveDailySlot(user);
-  if (!rateLimit.ok && rateLimit.reason === "in_flight") {
-    await say({
-      markdown_text: "you already have one running, hang tight",
+  await handleRequest({
+    channel: event.channel,
+    ts: event.ts,
+    user: event.user,
+    text: event.text,
+  });
+});
+
+// Everything up to joining the run queue is synchronous, so requests join
+// the queue in the order this is called.
+async function handleRequest(event: Request) {
+  const client = app.client;
+  // Every reply goes in the request's thread.
+  const say = (
+    content: { markdown_text: string } | { text: string; blocks: unknown[] },
+  ) =>
+    client.chat.postMessage({
+      channel: event.channel,
       thread_ts: event.ts,
       unfurl_links: false,
       unfurl_media: false,
-    });
+      ...content,
+    } as ChatPostMessageArguments);
+
+  const user = event.user;
+  const rateLimit = reserveDailySlot(user);
+  // Turned away: if this was a recovered request, don't recover it again.
+  if (!rateLimit.ok) removePending(event);
+  if (!rateLimit.ok && rateLimit.reason === "in_flight") {
+    await say({ markdown_text: "you already have one running, hang tight" });
     return;
   }
   if (!rateLimit.ok) {
@@ -258,9 +287,6 @@ app.message(async ({ event, say, client }) => {
     );
     await say({
       markdown_text: `you can only run this once per day. come back in ~${hoursLeft}h`,
-      thread_ts: event.ts,
-      unfurl_links: false,
-      unfurl_media: false,
     });
     return;
   }
@@ -269,10 +295,24 @@ app.message(async ({ event, say, client }) => {
   const runControl = new AbortController();
   const runKey = messageKey(event.channel, event.ts);
   runsByMessage.set(runKey, runControl);
-  let slot: RunSlot | undefined;
+  addPending(event);
+  const slot = acquireRunSlot(runControl.signal);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   try {
+    if (slot.position > 0) {
+      console.log("run queued", { requester: user, position: slot.position });
+      await say({
+        markdown_text: `you're #${slot.position} in the queue, hang tight`,
+      });
+    }
+    await slot.ready;
+    // The timeout covers the run itself, not time spent in the queue.
+    timer = setTimeout(
+      () => runControl.abort(new RunTimeoutError()),
+      RUN_TIMEOUT_MS,
+    );
+
     const mentionedUserId = [...(event.text?.matchAll(/<@([UW][A-Z0-9]+)>/g) ?? [])]
       .map((match) => match[1])
       .find((userId) => userId !== botUserId);
@@ -299,9 +339,6 @@ app.message(async ({ event, say, client }) => {
           profileInfo.error === "user_not_found"
             ? `couldn't find <@${targetUserId}>. is that a real user?`
             : `couldn't look up <@${targetUserId}>'s profile (${profileInfo.error ?? "unknown error"})`,
-        thread_ts: event.ts,
-        unfurl_links: false,
-        unfurl_media: false,
       });
       return;
     }
@@ -313,23 +350,6 @@ app.message(async ({ event, say, client }) => {
         ...field,
         name: teamFields[id],
       }),
-    );
-
-    slot = acquireRunSlot(runControl.signal);
-    if (slot.position > 0) {
-      console.log("run queued", { requester: user, position: slot.position });
-      await say({
-        markdown_text: `you're #${slot.position} in the queue, hang tight`,
-        thread_ts: event.ts,
-        unfurl_links: false,
-        unfurl_media: false,
-      });
-    }
-    await slot.ready;
-    // The timeout covers the run itself, not time spent in the queue.
-    timer = setTimeout(
-      () => runControl.abort(new RunTimeoutError()),
-      RUN_TIMEOUT_MS,
     );
 
     const updateStatus = (status: string | undefined) =>
@@ -417,9 +437,6 @@ app.message(async ({ event, say, client }) => {
               ],
             },
           ],
-          thread_ts: event.ts,
-          unfurl_links: false,
-          unfurl_media: false,
         });
         commitDailySlot(user);
         // The reply is out; don't report a timeout while the run tears down.
@@ -448,19 +465,50 @@ app.message(async ({ event, say, client }) => {
       timedOut: error instanceof RunTimeoutError,
       error,
     });
-    await say({
-      markdown_text: "something went wrong cc <@U0923H02Y3B>",
-      thread_ts: event.ts,
-      unfurl_links: false,
-      unfurl_media: false,
-    });
+    await say({ markdown_text: "something went wrong cc <@U0923H02Y3B>" });
     return;
   } finally {
     clearTimeout(timer);
-    slot?.release();
+    slot.release();
     runsByMessage.delete(runKey);
+    removePending(event);
     releaseDailySlot(user);
   }
-});
+}
+
+// Whether the request message is still there. If it was deleted while we
+// were down, replying would post into the main channel.
+async function requestStillExists(request: Request) {
+  try {
+    const history = await app.client.conversations.history({
+      channel: request.channel,
+      latest: request.ts,
+      oldest: request.ts,
+      inclusive: true,
+      limit: 1,
+    });
+    const message = history.messages?.[0];
+    return message?.ts === request.ts && message.subtype !== "tombstone";
+  } catch (error) {
+    console.error("failed to check pending request", { ...request, error });
+    return false;
+  }
+}
 
 await app.start();
+
+// Pick up requests that were queued or running when the last process exited.
+// Runs that were in progress start over.
+const recovered = loadPending();
+if (recovered.length > 0) {
+  console.log("recovering pending requests", { count: recovered.length });
+  const stillThere = await Promise.all(recovered.map(requestStillExists));
+  recovered.forEach((request, i) => {
+    if (!stillThere[i]) {
+      console.log("dropping deleted pending request", request);
+      removePending(request);
+      return;
+    }
+    void handleRequest(request);
+  });
+}
